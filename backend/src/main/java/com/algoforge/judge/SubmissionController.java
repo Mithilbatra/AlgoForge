@@ -67,7 +67,7 @@ public class SubmissionController {
         }
         if (body.oaSessionId() != null) {
             checkAssessmentSubmission(uid, body);
-        } else if (problems.lockedByAssessment(uid, body.problemId())) {
+        } else if (problems.inRunningAssessment(uid, body.problemId())) {
             throw ApiException.conflict("This problem is part of your running assessment; submit it from the assessment page");
         }
         long sid = jdbc.sql("""

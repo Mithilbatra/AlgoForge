@@ -41,18 +41,25 @@ public final class AiOutputs {
     }
 
     public static CoachReply coach(JsonNode n) throws InvalidOutput {
-        return new CoachReply(stripCode(str(n, "reply", 3000)), str(n, "next_step", 400));
+        // Strip before capping: capping first could cut off a closing fence and let the code through.
+        String reply = stripCode(str(n, "reply", Integer.MAX_VALUE));
+        return new CoachReply(reply.length() > 3000 ? reply.substring(0, 3000) : reply, str(n, "next_step", 400));
     }
 
-    private static final Pattern FENCE = Pattern.compile("```[^\\n]*\\n(.*?)```", Pattern.DOTALL);
+    // Fences as markdown reads them: three or more ` or ~ at a line start (an info string with backticks is inline code
+    // instead), closed by at least as many at a line start, or running to the end of the reply when unclosed.
+    private static final Pattern FENCE = Pattern.compile("^ {0,3}(`{3,}|~{3,})[^`\\n]*\\n(.*?)(?:^ {0,3}\\1|\\z)", Pattern.DOTALL | Pattern.MULTILINE);
     static final int MAX_CODE_LINES = 6;
 
-    /** The coach must not hand out solutions: fenced code longer than a few lines is removed, whatever the model sent. */
+    /**
+     * The coach must not hand out solutions: fenced code longer than a few lines is removed, whatever the model sent.
+     * shortcut: only fenced code is checked, not 4-space indented blocks; parse the markdown if models start sending those.
+     */
     public static String stripCode(String s) {
         Matcher m = FENCE.matcher(s);
         StringBuilder out = new StringBuilder();
         while (m.find()) {
-            boolean tooLong = m.group(1).strip().lines().count() > MAX_CODE_LINES;
+            boolean tooLong = m.group(2).strip().lines().count() > MAX_CODE_LINES;
             m.appendReplacement(out, Matcher.quoteReplacement(tooLong ? "_[code removed: Forge Coach shares ideas, not solutions]_" : m.group()));
         }
         m.appendTail(out);

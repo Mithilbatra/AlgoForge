@@ -23,5 +23,14 @@ export function saveDraft(key: string, code: string) {
   }
 }
 
+/** Drafts are not tied to an account, so signing out removes them (the next person on a shared computer must not see them). */
+export function clearDrafts() {
+  try {
+    Object.keys(localStorage).filter((k) => k.startsWith("af:draft:")).forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* storage blocked: nothing was saved either */
+  }
+}
+
 export const draftKey = (problemId: number, lang: Language, sessionId?: number) =>
   `af:draft:${sessionId ? `oa${sessionId}:` : ""}${problemId}:${lang}`;

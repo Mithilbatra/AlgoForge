@@ -45,6 +45,13 @@ class ApiIntegrationTest extends IntegrationTest {
         assertThat(body(ok).get("displayName").asText()).isEqualTo("Ada");
         mvc.perform(post("/api/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"bad\",\"password\":\"short\",\"displayName\":\"\"}")).andExpect(status().isBadRequest());
+        // BCrypt reads at most 72 bytes: longer passwords (by length, or by bytes when accented) are refused instead of crashing.
+        for (String pw : List.of("x".repeat(100), "é".repeat(40))) {
+            mvc.perform(post("/api/auth/register").with(csrf()).with(r -> { r.setRemoteAddr("10.9.0.3"); return r; })
+                    .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of(
+                            "email", "long" + System.nanoTime() + "@example.com", "password", pw, "displayName", "Long"))))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test

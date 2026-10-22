@@ -8,7 +8,7 @@ What each label means:
 - **Unconfigured**: implemented, but not exercised live because credentials were unavailable.
 - **Not implemented**: deliberately left out.
 
-Last full run: 83 backend tests (3 opt-in live tests skipped without keys) and 6 Playwright journeys against a production build of the web app with a local API and worker.
+Last full run: 90 backend tests (3 opt-in live tests skipped without keys) and 7 Playwright journeys against a production build of the web app with a local API and worker.
 
 ## Status by area
 
@@ -32,13 +32,13 @@ Last full run: 83 backend tests (3 opt-in live tests skipped without keys) and 6
 | AI | Two AI provider adapters with schema-constrained output, provider abstraction, model config in DB | Unconfigured | No API keys were available. Request shapes follow the current docs; parsing, validation, retries, caching, rate limits, dual mode and failure handling are tested with fake providers (`AiServiceIntegrationTest`) |
 | AI | AI-proposed test inputs, validated and answered by the reference solution | Unconfigured | Same pipeline as random tests (tested); the live call is not exercised |
 | AI | Dual-provider comparison with evidence-based resolution (no voting) | Tested | `DisagreementsTest` |
-| Forge Coach | Hint agent with three levels (nudge, approach, outline), grounded in the statement, current code, last verdict and static analysis; built-in fallback from authored hints; outline counts as a reveal; off during assessments; rate-limited | Tested, verified | `CoachIntegrationTest`, e2e coach journey, browser. The AI path is unconfigured live (same provider pipeline as reviews); long code blocks in replies are stripped (`AiOutputsTest`) |
+| Forge Coach | Hint agent with three levels (nudge, approach, outline), grounded in the statement, current code, last verdict and static analysis; built-in fallback from authored hints; AI-written outlines count as an audited reveal; off during assessments that forbid hints; rate-limited | Tested, verified | `CoachIntegrationTest`, e2e coach journey, browser. The AI path is unconfigured live (same provider pipeline as reviews); long code blocks in replies are stripped (`AiOutputsTest`) |
 | OA Arena | Templates (labelled as practice simulations), custom builder (chosen and/or random problems, partial credit, penalties, languages, mode) | Tested, verified | `OaIntegrationTest`, e2e |
 | OA Arena | Server-authoritative timer, refresh recovery, one active session, explicit submit, expiry sweeper, waiting for pending judging | Tested | `expiryFinalisesDeterministicallyAndBlocksLateSubmissions`, `finalisationWaitsForSubmissionsStillBeingJudged` |
-| OA Arena | Hidden test data, hints, editorials, topics and evaluations withheld during the assessment | Tested | Integration and e2e |
+| OA Arena | Hidden test data, editorials and evaluations withheld during the assessment, even when it allows hints; hints, topics and Forge Coach withheld unless it does | Tested | `allowingHintsStillHidesSolutionsDuringTheAssessment`, e2e |
 | OA Arena | Report: score, solved and partial, time per problem, verdict mix, sample-vs-hidden failures, timeline, insights, concepts to revise, follow-ups, evaluation links | Tested, verified | Integration, e2e, browser |
-| Learning | Concept graph (22 concepts, prerequisites), per-dimension Beta estimates with a 30-day half-life, no mastery from a single solve, solution reveals discounted | Tested | `LearningEstimatesTest`, OA and API flows |
-| Learning | Transfer Test Engine (tier 1 → 2 → 3 within a concept), daily session with reasons, accept/skip/replace, completion on accepted | Tested, verified | e2e recommendations journey, browser |
+| Learning | Concept graph (22 concepts, prerequisites), per-dimension Beta estimates with a 30-day half-life, no mastery from a single solve, solution reveals discounted | Tested | `LearningEstimatesTest`, `oldFailuresFadeEvenWhenNewEvidenceArrives`, OA and API flows |
+| Learning | Transfer Test Engine (tier 1 → 2 → 3 within a concept; disguised picks never name the technique), daily session with reasons built once per day, accept/skip/replace, completion on accepted | Tested, verified | e2e recommendations journey, `LearningIntegrationTest`, browser |
 | Dashboard | Recent activity, today's session, weakest concepts, weekly judged/accepted chart, time management from assessments, optional streak | Verified | Browser |
 | UI | Brand mark and logo, dark ember theme, responsive app shell, concept-graph Learning Map, verdict banners, skeleton loading states | Verified | Browser screenshots at 1440 px and on mobile width |
 | Ops | Flyway migrations, Dockerfiles, compose (dev DB or full stack), health and metrics endpoints, OpenAPI at `/api/docs`, retention job, audit log | Verified | Full stack started and passed e2e |
@@ -53,10 +53,10 @@ Last full run: 83 backend tests (3 opt-in live tests skipped without keys) and 6
 - **No verdict sync from external platforms.** Codeforces `user.status` could provide it later.
 - **No company tags.** No legitimately sourced data exists for them.
 - **No statement import for external problems.** The APIs used don't provide statements, and AlgoForge does not scrape.
-- **Drafts are per browser.** They live in `localStorage`, so autosave does not follow you across devices.
+- **Drafts are per browser.** They live in `localStorage`, so autosave does not follow you across devices, and signing out deletes them.
 - **Rate limits are kept in memory per API instance.** Move them to Redis or PostgreSQL before running several API instances. Sessions are already shared.
 - **Monaco loads from the jsDelivr CDN.** Host it yourself for offline or strict-CSP deployments.
 - **Seed problems are insert-only.** Changing a shipped problem needs a migration.
 - **Account management is minimal.** There is no email verification, password reset, admin UI for models, or authoring UI for private problems.
-- **The Next.js proxy times out at 30 s.** Sync is asynchronous for that reason; keep any new long operation asynchronous too.
+- **The Next.js proxy waits at most 150 s** (raised from 30 s for Forge Coach's AI calls). Sync and deep evaluation are asynchronous; keep any new long operation asynchronous too.
 - **Deployment trust assumptions:** the worker needs the Docker socket, so run it on a dedicated host, preferably with `SANDBOX_RUNTIME=runsc`. The web app must sit behind a reverse proxy that sets `X-Forwarded-For` (see the README's security model).

@@ -1,7 +1,9 @@
 package com.algoforge.problems;
 
 import com.algoforge.common.ApiException;
+import com.algoforge.common.Audit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -10,8 +12,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class ProblemService {
     private final JdbcClient jdbc;
+    private final Audit audit;
 
-    public ProblemService(JdbcClient jdbc) { this.jdbc = jdbc; }
+    public ProblemService(JdbcClient jdbc, Audit audit) {
+        this.jdbc = jdbc;
+        this.audit = audit;
+    }
 
     public record JudgeInfo(long id, String title, String source, int timeLimitMs, int memoryLimitMb, Integer maxN,
                             int inputSizePower, String statementMd, String constraintsMd, String referencePy,
@@ -34,15 +40,29 @@ public class ProblemService {
                 .params(problemId, userId).query(Long.class).single() > 0;
     }
 
-    /** True while the problem is part of the user's running assessment that forbids hints and solutions. */
-    public boolean lockedByAssessment(long userId, long problemId) {
+    /** True while the problem is part of the user's running assessment that forbids hints (and the coach). */
+    public boolean lockedByAssessment(long userId, long problemId) { return runningAssessment(userId, problemId, true); }
+
+    /** True while the problem is part of the user's running assessment: solutions and hidden tests stay hidden, even when hints are allowed. */
+    public boolean inRunningAssessment(long userId, long problemId) { return runningAssessment(userId, problemId, false); }
+
+    private boolean runningAssessment(long userId, long problemId, boolean onlyWithoutHints) {
         return jdbc.sql("""
                 select count(*) from oa_sessions s
                   join oa_definitions d on d.id = s.definition_id
                   join oa_problems op on op.definition_id = d.id
-                 where s.user_id = ? and s.status <> 'COMPLETED' and d.mode = 'ASSESSMENT'
-                   and not d.allow_hints and op.problem_id = ?""")
-                .params(userId, problemId).query(Long.class).single() > 0;
+                 where s.user_id = :u and s.status <> 'COMPLETED' and d.mode = 'ASSESSMENT'
+                   and (not :onlyWithoutHints or not d.allow_hints) and op.problem_id = :p""")
+                .param("u", userId).param("p", problemId).param("onlyWithoutHints", onlyWithoutHints).query(Long.class).single() > 0;
+    }
+
+    /** The user saw a solution (editorial or a written outline): later accepted submissions count as weaker evidence. */
+    public void markRevealed(long userId, long problemId) {
+        jdbc.sql("""
+                insert into user_problem_state (user_id, problem_id, revealed_at) values (?, ?, now())
+                on conflict (user_id, problem_id) do update set revealed_at = coalesce(user_problem_state.revealed_at, now())""")
+                .params(userId, problemId).update();
+        audit.log(userId, "REVEAL_SOLUTION", Map.of("problemId", problemId), null);
     }
 
     /** A problem can be judged locally when it has stored tests or generator specs. */

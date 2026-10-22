@@ -53,4 +53,19 @@ class AiOutputsTest {
         String shortCode = "```\nlo, hi = 0, n\n```";
         assertThat(AiOutputs.stripCode(shortCode)).isEqualTo(shortCode);
     }
+
+    @Test
+    void coachStripsUnclosedAndOverLongCodeBlocks() throws Exception {
+        String unclosed = "Here:\n```python\n" + "x = 1\n".repeat(12);
+        assertThat(AiOutputs.stripCode(unclosed)).contains("code removed").doesNotContain("x = 1");
+        // The closing fence sits past the 3000-character cap; the code must still be removed.
+        String longReply = "Here:\n```python\n" + "total = total + value  # step\n".repeat(120) + "```";
+        var r = AiOutputs.coach(M.readTree(M.writeValueAsString(java.util.Map.of("reply", longReply, "next_step", "go"))));
+        assertThat(r.reply()).contains("code removed").doesNotContain("total = total");
+        assertThat(AiOutputs.stripCode("Try:\n~~~\n" + "x = 1\n".repeat(12) + "~~~")).contains("code removed").doesNotContain("x = 1");
+        assertThat(AiOutputs.stripCode("Try:\n````python\n" + "x = 1\n".repeat(12) + "````")).contains("code removed").doesNotContain("x = 1");
+        // Triple backticks inside a sentence are inline code, not a fence: the prose after them stays.
+        String prose = "Use ```lo``` as the left end.\n" + "Then move it right while the condition holds.\n".repeat(8);
+        assertThat(AiOutputs.stripCode(prose)).isEqualTo(prose);
+    }
 }

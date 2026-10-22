@@ -164,7 +164,7 @@ public class OaFinalizer {
 
         Set<Long> inSession = probs.stream().map(Prob::problemId).collect(Collectors.toSet());
         List<Map<String, Object>> followUps = recommendations.followUps(s.userId(), revise, inSession, 4).stream().map(c -> Map.<String, Object>of(
-                "problemId", c.problemId(), "concept", c.conceptCode(), "reason", c.reason(),
+                "problemId", c.problemId(), "reason", c.reason(),
                 "title", jdbc.sql("select title from problems where id = ?").param(c.problemId()).query(String.class).single())).toList();
 
         Map<String, Object> r = new LinkedHashMap<>();

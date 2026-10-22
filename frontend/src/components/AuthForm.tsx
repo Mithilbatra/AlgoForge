@@ -34,6 +34,16 @@ function Constellation() {
   );
 }
 
+/** The page to open after sign-in: only paths on this site are followed (browsers read "/\evil.com" as another host). */
+function safeNext(next: string | null): string {
+  try {
+    const u = new URL(next ?? "/", window.location.origin);
+    return u.origin === window.location.origin ? u.pathname + u.search + u.hash : "/";
+  } catch {
+    return "/";
+  }
+}
+
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
   const next = useSearchParams().get("next");
@@ -47,8 +57,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     setError(undefined);
     try {
       await post(mode === "login" ? "/api/auth/login" : "/api/auth/register", Object.fromEntries(f.entries()));
-      // only same-site relative paths are followed after sign-in
-      router.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
+      router.replace(safeNext(next));
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);

@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Cache Components is off: every page here is client-rendered behind the session check, so it adds nothing, and
   // with it on, clicking a link before the first page finished hydrating could leave the next route unmounted.
+  // Forge Coach waits for the AI provider inside the request (up to 120 s plus one retry), past the 30 s proxy default.
+  experimental: { proxyTimeout: 150_000 },
   turbopack: {
     root: __dirname,
     rules: {

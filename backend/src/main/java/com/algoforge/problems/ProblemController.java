@@ -150,6 +150,7 @@ public class ProblemController {
         long uid = CurrentUser.id(auth);
         problems.visible(uid, id);
         boolean locked = problems.lockedByAssessment(uid, id);
+        boolean solutionsLocked = locked || problems.inRunningAssessment(uid, id);
         return jdbc.sql("""
                 select p.*, s.name as source_name, coalesce(ups.status, 'UNSEEN') as status, ups.notes, ups.personal_difficulty,
                        %s as tags, (exists (select 1 from problem_concepts pc where pc.problem_id = p.id and pc.tier = 3)
@@ -160,10 +161,10 @@ public class ProblemController {
                   left join user_problem_state ups on ups.problem_id = p.id and ups.user_id = :uid
                  where p.id = :id""".formatted(VISIBLE_TAGS))
                 .param("uid", uid).param("id", id)
-                .query((rs, i) -> toDetail(rs, uid, locked)).single();
+                .query((rs, i) -> toDetail(rs, locked, solutionsLocked)).single();
     }
 
-    private ProblemDetail toDetail(ResultSet rs, long uid, boolean locked) throws SQLException {
+    private ProblemDetail toDetail(ResultSet rs, boolean locked, boolean solutionsLocked) throws SQLException {
         long id = rs.getLong("id");
         boolean solved = "SOLVED".equals(rs.getString("status"));
         boolean hideTags = locked || rs.getBoolean("tags_hidden");
@@ -192,7 +193,7 @@ public class ProblemController {
                 rs.getString("constraints_md"), rs.getString("difficulty"), (Integer) rs.getObject("source_rating"),
                 (Integer) rs.getObject("est_minutes"), rs.getInt("time_limit_ms"), rs.getInt("memory_limit_mb"),
                 hideTags ? List.of() : strings(rs.getArray("tags")), hideTags, concepts, samples,
-                locked ? null : hints, locked, !locked && rs.getString("editorial_md") != null,
+                locked ? null : hints, locked, !solutionsLocked && rs.getString("editorial_md") != null,
                 problems.judgeable(id), rs.getInt("official"), caps,
                 new UserState(rs.getString("status"), rs.getString("notes"), pd), rs.getObject("owner_id") != null);
     }
@@ -204,15 +205,11 @@ public class ProblemController {
     public Editorial editorial(@PathVariable long id, Authentication auth) {
         long uid = CurrentUser.id(auth);
         problems.visible(uid, id);
-        if (problems.lockedByAssessment(uid, id)) throw ApiException.forbidden("Solutions are hidden until the assessment ends");
+        if (problems.inRunningAssessment(uid, id)) throw ApiException.forbidden("Solutions are hidden until the assessment ends");
         Editorial e = jdbc.sql("select editorial_md, 'python' as reference_language, reference_py as reference_solution from problems where id = ?")
                 .param(id).query(Editorial.class).single();
         if (e.editorialMd() == null) throw ApiException.notFound("Editorial");
-        jdbc.sql("""
-                insert into user_problem_state (user_id, problem_id, revealed_at) values (?, ?, now())
-                on conflict (user_id, problem_id) do update set revealed_at = coalesce(user_problem_state.revealed_at, now())""")
-                .params(uid, id).update();
-        audit.log(uid, "REVEAL_SOLUTION", Map.of("problemId", id), null);
+        problems.markRevealed(uid, id);
         return e;
     }
 

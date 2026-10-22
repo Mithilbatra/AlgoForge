@@ -14,7 +14,7 @@ type Msg = { role: "user"; text: string; level: number } | { role: "coach"; repl
 const LEVELS: { level: number; label: string; icon: LucideIcon; text: string }[] = [
   { level: 1, label: "Nudge", icon: Lightbulb, text: "A question that points at the key idea" },
   { level: 2, label: "Approach", icon: Compass, text: "The technique, and why it fits" },
-  { level: 3, label: "Outline", icon: ListOrdered, text: "Step-by-step plan. Counts as a reveal." },
+  { level: 3, label: "Outline", icon: ListOrdered, text: "Step-by-step plan. AI outlines count as a reveal." },
 ];
 
 const STARTERS = ["Give me a nudge to get started", "Why is my last submission failing?", "Is my approach fast enough for these constraints?"];

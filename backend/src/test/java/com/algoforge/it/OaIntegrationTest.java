@@ -30,6 +30,23 @@ class OaIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void allowingHintsStillHidesSolutionsDuringTheAssessment() throws Exception {
+        Cookie s = register("hints");
+        long p = problemId("Stepping Stones");
+        JsonNode def = body(mvc.perform(jsonPost("/api/oa/definitions", s, Map.of("title", "Hints on", "durationMinutes", 30,
+                "mode", "ASSESSMENT", "partialCredit", true, "wrongPenaltyPct", 0, "languages", List.of("python"),
+                "allowHints", true, "problems", List.of(Map.of("problemId", p, "points", 100))))).andExpect(status().isOk()).andReturn());
+        mvc.perform(jsonPost("/api/oa/definitions/" + def.get("id").asLong() + "/start", s, Map.of())).andExpect(status().isOk());
+        JsonNode detail = body(mvc.perform(get("/api/problems/" + p).cookie(s)).andExpect(status().isOk()).andReturn());
+        assertThat(detail.get("hints")).isNotEmpty();
+        assertThat(detail.get("editorialAvailable").asBoolean()).isFalse();
+        mvc.perform(get("/api/problems/" + p + "/editorial").cookie(s)).andExpect(status().isForbidden());
+        // Submitting outside the assessment would show hidden test data, so it stays blocked too.
+        mvc.perform(jsonPost("/api/submissions", s, Map.of("problemId", p, "language", "python", "code", "print(1)")))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     void expiryFinalisesDeterministicallyAndBlocksLateSubmissions() throws Exception {
         Cookie s = register("oa");
         long uid = userId(s), p1 = problemId("Range Totals"), p2 = problemId("Coin Combinations");

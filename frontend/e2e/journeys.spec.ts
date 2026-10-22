@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chooseLanguage, REFERENCE, setCode } from "./helpers";
+import { chooseLanguage, REFERENCE, register, setCode } from "./helpers";
 
 test("practice: open a problem, run, submit, read the evaluation, run a deep evaluation", async ({ page }) => {
   await page.goto("/");
@@ -110,5 +110,26 @@ test.describe("signed out", () => {
     await page.getByLabel("Password").fill("wrong-password");
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Invalid email or password" })).toBeVisible();
+  });
+
+  test("sign-out clears code drafts, and sign-in only follows next= links on this site", async ({ page }) => {
+    const drafts = () => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("af:draft:")));
+    const email = await register(page, "Grace");
+    await page.goto("/problems");
+    await page.getByRole("link", { name: "Stepping Stones" }).click();
+    await setCode(page, "print('my draft')");
+    await expect.poll(drafts).toHaveLength(1);
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    expect(await drafts()).toEqual([]);
+
+    // Browsers read "/\example.com" as another host; sign-in must land on the dashboard instead.
+    await page.route((u) => u.hostname === "example.com", (r) => r.fulfill({ body: "off-site" }));
+    await page.goto("/login?next=" + encodeURIComponent("/\\example.com/x"));
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Password").fill("e2e-password-not-secret");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: /, Grace/ })).toBeVisible();
+    expect(new URL(page.url()).hostname).not.toBe("example.com");
   });
 });

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Flame, LayoutDashboard, Library, LogOut, Network, ScanSearch, Settings2, Timer, type LucideIcon } from "lucide-react";
 import { get, post } from "@/lib/api";
+import { clearDrafts } from "@/lib/drafts";
 import type { Me } from "@/lib/types";
 import { Logo, LogoMark } from "./Logo";
 import { cx } from "./ui";
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const active = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
   const logout = async () => {
     await post("/api/auth/logout").catch(() => undefined);
+    clearDrafts();
     router.replace("/login");
   };
 

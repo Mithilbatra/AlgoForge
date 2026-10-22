@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
@@ -61,7 +62,7 @@ public class AuthController {
     }
 
     public record RegisterRequest(@NotBlank @Email @Size(max = 254) String email,
-                                  @NotBlank @Size(min = 8, max = 128) String password,
+                                  @NotBlank @Size(min = 8, max = 72) String password,
                                   @NotBlank @Size(max = 60) String displayName) {}
 
     public record LoginRequest(@NotBlank String email, @NotBlank String password) {}
@@ -77,6 +78,10 @@ public class AuthController {
     @PostMapping("/api/auth/register")
     @Transactional
     public Me register(@Valid @RequestBody RegisterRequest body, HttpServletRequest req, HttpServletResponse res) {
+        // BCrypt reads at most 72 bytes and the encoder rejects longer input; accented letters and symbols take several bytes.
+        if (body.password().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw ApiException.badRequest("Password is too long: use at most 72 bytes (fewer characters if it has accents or symbols)");
+        }
         limiter.check("register:" + req.getRemoteAddr(), props.limits().registrationsPer15Minutes(), Duration.ofMinutes(15));
         // Client addresses can be forged when no trusted proxy sets them, so registration also has a global ceiling.
         limiter.check("register:all", props.limits().registrationsPer15Minutes() * 40, Duration.ofMinutes(15));

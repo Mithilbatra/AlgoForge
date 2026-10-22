@@ -270,8 +270,11 @@ function Statement({ p }: { p: ProblemDetail }) {
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {p.difficulty && <Badge className={difficultyPill(p.difficulty)}>{p.difficulty.toLowerCase()}</Badge>}
         {p.sourceRating && <Badge className="border-gold/30 bg-gold/10 text-gold">rating {p.sourceRating}</Badge>}
-        <Badge><Timer className="h-3 w-3" aria-hidden />{p.timeLimitMs / 1000} s</Badge>
-        <Badge><Gauge className="h-3 w-3" aria-hidden />{p.memoryLimitMb} MB</Badge>
+        {/* Synced and linked problems store no limits of their own, only the database defaults. */}
+        {p.judgeable && <>
+          <Badge><Timer className="h-3 w-3" aria-hidden />{p.timeLimitMs / 1000} s</Badge>
+          <Badge><Gauge className="h-3 w-3" aria-hidden />{p.memoryLimitMb} MB</Badge>
+        </>}
         {p.tags.map((t) => <Badge key={t}>{t}</Badge>)}
         {p.tagsHidden && !p.assessmentLocked && <Badge className="border-violet/30 bg-violet/[0.07] text-violet" title="This problem tests whether you recognise the technique without being told."><EyeOff className="h-3 w-3" aria-hidden />topic hidden until solved</Badge>}
         {p.assessmentLocked && <Badge className="border-warn/40 bg-warn/10 text-warn">assessment: hints and topics hidden</Badge>}

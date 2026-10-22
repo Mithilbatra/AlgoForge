@@ -129,7 +129,7 @@ export interface OaReport {
     evaluation?: { evaluationId: number; overallScore: number; optimisationFindings: string[]; staticTimeComplexity?: string };
   }[];
   timeline: { submissionId: number; problemId: number; title: string; atSeconds: number; status: string; passed?: number; total?: number }[];
-  followUps: { problemId: number; title: string; concept: string; reason: string }[];
+  followUps: { problemId: number; title: string; reason: string }[];
 }
 
 export interface Preferences {

@@ -20,7 +20,7 @@ AlgoForge is a platform for competitive programming practice and coding-assessme
 - **Practice Lab**: Monaco editor, runs on the samples or custom input, judged submissions with per-test verdicts, real time and memory measurements, hints, notes and an editorial.
 - **Code evaluation**: every verdict comes from compiling and running the code in a Docker sandbox. A transparent, weighted report combines that execution evidence with static analysis. On request, a deep evaluation runs seeded random and AI-proposed inputs through an input validator and a trusted reference solution, keeps the smallest failing case, benchmarks accepted code, and asks the configured AI providers for a review. Disagreements are settled only by evidence.
 - **OA Arena**: timed assessments built from templates or by hand, with server-side timing, deterministic scoring (partial credit and penalties), hidden test data during the run, and a post-assessment report with time per problem, a submission timeline, insights and follow-up problems.
-- **Forge Coach**: an AI hint agent in the practice workspace. It reads the statement, your current code, your last verdict and the static analysis, and answers at the level you pick: a nudge, the approach, or a step-by-step outline. It never writes the solution (code blocks longer than six lines are stripped), an outline counts as a solution reveal, and it is switched off during assessments. Without an AI provider, a built-in coach answers from the problem's authored hints and a diagnosis of your last verdict.
+- **Forge Coach**: an AI hint agent in the practice workspace. It reads the statement, your current code, your last verdict and the static analysis, and answers at the level you pick: a nudge, the approach, or a step-by-step outline. It never writes the solution (code blocks longer than six lines are stripped, even unclosed ones), an AI-written outline counts as a solution reveal, and it is switched off during assessments that forbid hints. Without an AI provider, a built-in coach answers from the problem's authored hints and a diagnosis of your last verdict.
 - **Adaptive learning**: a 22-concept prerequisite graph with per-dimension estimates (implementation, transfer, recognition, time pressure, retention, complexity reasoning) built only from judged evidence. A transfer-test engine moves you from the standard form of a concept to variants and disguised problems, and the daily session explains every pick.
 
 Guiding principle: execution decides correctness, reproducible measurements back performance claims, AI explains and assists, and recommendations follow demonstrated ability.
@@ -121,7 +121,7 @@ Without any key, every deterministic part still works: judging, generated tests 
 
 ## Tests
 
-Backend (83 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
+Backend (90 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
 
 ```bash
 cd backend && mvn test
@@ -175,10 +175,10 @@ Fork bombs, memory bombs, output floods, orphaned processes and network access w
 
 - Authentication uses server-side sessions stored in PostgreSQL (Spring Session JDBC), in an HttpOnly, SameSite=Lax cookie. Set `COOKIE_SECURE=true` behind HTTPS.
 - Every mutating request needs the double-submit CSRF token.
-- Passwords are hashed with BCrypt.
+- Passwords are hashed with BCrypt (at most 72 bytes, BCrypt's input limit).
 - Login is rate-limited per account and per address; registration, submissions, runs, syncs, deep evaluations and AI calls are rate-limited too.
-- Hidden test data, hints, editorials and evaluations are withheld server-side while an assessment runs.
-- Logins, registrations, solution reveals and syncs are written to `audit_log`.
+- Hidden test data, editorials and evaluations are withheld server-side while an assessment runs, even when it allows hints; hints and Forge Coach are withheld unless it does.
+- Logins, registrations, solution reveals (editorials and AI outlines) and syncs are written to `audit_log`.
 - Retention jobs prune the AI cache, old jobs, usage logs and audit entries.
 
 **Proxies:** the API reads client addresses with Tomcat's `RemoteIpValve`, which walks `X-Forwarded-For` right to left through trusted private-network proxies only. Next.js rewrites forward a client-sent `X-Forwarded-For` unchanged and add none of their own. In production, put a reverse proxy or load balancer in front of the web app that sets `X-Forwarded-For` to the real client address, and do not expose the API port publicly. Login limits are also keyed by account, so a forged header cannot bypass them.

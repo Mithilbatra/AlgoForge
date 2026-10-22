@@ -42,7 +42,8 @@ public class CoachService {
         this.json = json;
     }
 
-    public record Turn(@Pattern(regexp = "user|coach") String role, @Size(max = 2000) String text) {}
+    // Coach replies can be 3000 characters, and the client sends them back as history; prompt() trims each turn to 2000.
+    public record Turn(@Pattern(regexp = "user|coach") String role, @Size(max = 4000) String text) {}
 
     public record Request(@Min(1) @Max(3) int level, @Size(max = 1000) String message, @Size(max = 65536) String code,
                           @Pattern(regexp = "java|cpp|python") String language, @Size(max = 8) List<@Valid Turn> history,
@@ -57,28 +58,30 @@ public class CoachService {
         JudgeInfo p = problems.visible(userId, problemId);
         if (problems.lockedByAssessment(userId, problemId)) throw ApiException.forbidden("Forge Coach is off while this problem is part of a running assessment");
         Optional<Failure> failure = lastResult(userId, problemId, r.submissionId());
+        if (problems.inRunningAssessment(userId, problemId)) {
+            // Assessments that allow hints still hide test data, so the AI never sees the failing test's contents.
+            failure = failure.map(f -> new Failure(f.status(), f.message(), f.kind(), null, null, null));
+        }
         StaticAnalyzer.Result analysis = r.code() == null || r.code().isBlank() || r.language() == null ? null
                 : StaticAnalyzer.analyze(r.code(), Language.of(r.language()), p.constraintsMd());
-        String revealNotice = null;
-        if (r.level() == 3) {
-            // An outline is close to a solution, so a later accepted submission counts as weaker evidence.
-            jdbc.sql("""
-                    insert into user_problem_state (user_id, problem_id, revealed_at) values (?, ?, now())
-                    on conflict (user_id, problem_id) do update set revealed_at = coalesce(user_problem_state.revealed_at, now())""")
-                    .params(userId, problemId).update();
-            revealNotice = "Outlines count as a solution reveal: a later accepted submission weighs less as evidence.";
-        }
         String fallbackNotice = null;
         if (ai.anyAvailable("REVIEW")) {
             var call = ai.coach(userId, prompt(p, r, failure, analysis)).orElseThrow();
             if (call.ok()) {
+                String revealNotice = null;
+                if (r.level() == 3) {
+                    // A written outline is close to a solution, so a later accepted submission counts as weaker evidence.
+                    // The built-in outline is the authored third hint, which the Hints tab shows freely, so it is not a reveal.
+                    problems.markRevealed(userId, problemId);
+                    revealNotice = "Outlines count as a solution reveal: a later accepted submission weighs less as evidence.";
+                }
                 return new Reply(call.value().reply(), call.value().nextStep(), r.level(), "ai", call.provider(), call.model(), revealNotice);
             }
             fallbackNotice = "The AI coach is unavailable right now (" + call.status().toLowerCase().replace('_', ' ') + "), so the built-in coach answered.";
         } else if (r.message() != null && !r.message().isBlank()) {
             fallbackNotice = "Free-form questions need an AI provider. Here is the built-in coach's take instead.";
         }
-        return builtIn(p, r.level(), failure, analysis, join(fallbackNotice, revealNotice));
+        return builtIn(p, r.level(), failure, analysis, fallbackNotice);
     }
 
     // ---- built-in coach ------------------------------------------------------------------------------------------
@@ -189,6 +192,4 @@ public class CoachService {
     }
 
     private static String cap(String s, int n) { return s == null ? "" : s.length() <= n ? s : s.substring(0, n) + "\n…"; }
-
-    private static String join(String a, String b) { return a == null ? b : b == null ? a : a + " " + b; }
 }

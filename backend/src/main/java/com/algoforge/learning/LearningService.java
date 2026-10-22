@@ -96,17 +96,21 @@ public class LearningService {
                 insert into learning_events (user_id, concept_code, dimension, success, weight, context, problem_id, submission_id)
                 values (?, ?, ?, ?, ?, ?, ?, ?)""")
                 .params(userId, concept, dimension, success, weight, context, problemId, submissionId).update();
+        // The stored totals fade to now before new evidence is added, so each piece of evidence ages from its own date
+        // (estimate() then fades the totals from last_evidence_at).
+        String fade = "power(0.5, coalesce(extract(epoch from now() - concept_confidence.last_evidence_at), 0)::float8 / (86400 * :hl))";
         jdbc.sql("""
                 insert into concept_confidence (user_id, concept_code, dimension, successes, failures, evidence_count,
                     last_evidence_at, last_success_at)
                 values (:u, :c, :d, case when :ok then :w else 0 end, case when :ok then 0 else :w end, 1, now(), case when :ok then now() end)
                 on conflict (user_id, concept_code, dimension) do update set
-                    successes = concept_confidence.successes + excluded.successes,
-                    failures = concept_confidence.failures + excluded.failures,
+                    successes = concept_confidence.successes * %1$s + excluded.successes,
+                    failures = concept_confidence.failures * %1$s + excluded.failures,
                     evidence_count = concept_confidence.evidence_count + 1,
                     last_evidence_at = now(),
-                    last_success_at = coalesce(excluded.last_success_at, concept_confidence.last_success_at)""")
-                .param("u", userId).param("c", concept).param("d", dimension).param("ok", success).param("w", weight).update();
+                    last_success_at = coalesce(excluded.last_success_at, concept_confidence.last_success_at)""".formatted(fade))
+                .param("u", userId).param("c", concept).param("d", dimension).param("ok", success).param("w", weight)
+                .param("hl", HALF_LIFE_DAYS).update();
     }
 
     // ---- estimates --------------------------------------------------------------------------------------------------

@@ -47,6 +47,14 @@ public class RecommendationService {
 
     record ProblemConcept(long problemId, String conceptCode, int tier) {}
 
+    static final String DISGUISED_REASON = "A problem whose statement does not name the technique: working out which idea applies is part of the test.";
+
+    /** Disguised (tier 3) problems measure recognition, so their reason names neither the concept nor a related solve. */
+    static Candidate candidate(ProblemConcept pc, String kind, String reason) {
+        return pc.tier() == 3 ? new Candidate(pc.problemId(), null, kind, DISGUISED_REASON)
+                : new Candidate(pc.problemId(), pc.conceptCode(), kind, reason);
+    }
+
     static String tierPhrase(int tier) {
         return switch (tier) {
             case 1 -> "in its standard form";
@@ -57,6 +65,8 @@ public class RecommendationService {
 
     @Transactional
     public List<Rec> today(long userId) {
+        // The dashboard and the practice page both build the session; one at a time per user, or both insert a full day.
+        jdbc.sql("select pg_advisory_xact_lock(2, ?)").param(Math.toIntExact(userId)).query((rs, i) -> 0).list();
         List<Rec> existing = stored(userId);
         if (!existing.isEmpty()) return existing;
         record Prefs(int dailyMinutes, String targetDifficulty, String goalText, String[] goalConcepts) {}
@@ -119,8 +129,7 @@ public class RecommendationService {
                     .min((a, b) -> Integer.compare(a.tier(), b.tier()))
                     .ifPresent(pc -> {
                         used.add(pc.problemId());
-                        out.add(new Candidate(pc.problemId(), concept, "WEAKNESS",
-                                "Follow-up on " + concept + " " + tierPhrase(pc.tier()) + "."));
+                        out.add(candidate(pc, "WEAKNESS", "Follow-up on " + concept + " " + tierPhrase(pc.tier()) + "."));
                     });
             if (out.size() >= limit) break;
         }
@@ -151,7 +160,7 @@ public class RecommendationService {
             if (m == null || m.status().equals("STRONG")) continue;
             easiest(g, pcs, problems, open, targetDifficulty).ifPresent(pc -> {
                 used.add(pc.problemId());
-                out.put(pc.problemId(), new Candidate(pc.problemId(), g, "GOAL", (goalText == null ? "Goal concept" : "Goal: " + goalText)
+                out.put(pc.problemId(), candidate(pc, "GOAL", (goalText == null ? "Goal concept" : "Goal: " + goalText)
                         + ". " + m.name() + " is " + describe(m) + "; this practises it " + tierPhrase(pc.tier()) + "."));
             });
         }
@@ -160,8 +169,7 @@ public class RecommendationService {
                 .sorted((a, b) -> Double.compare(a.mastery(), b.mastery()))
                 .forEach(m -> easiest(m.code(), pcs, problems, open, targetDifficulty).ifPresent(pc -> {
                     used.add(pc.problemId());
-                    out.put(pc.problemId(), new Candidate(pc.problemId(), m.code(), "WEAKNESS",
-                            m.name() + " is a weak spot (" + describe(m) + ")."));
+                    out.put(pc.problemId(), candidate(pc, "WEAKNESS", m.name() + " is a weak spot (" + describe(m) + ")."));
                 }));
         // 4. revision of problems solved two or more weeks ago
         problems.values().stream()
@@ -178,7 +186,7 @@ public class RecommendationService {
         mastery.values().stream().filter(m -> m.evidence() == 0 && m.prerequisites().stream().allMatch(req -> ready(mastery.get(req))))
                 .forEach(m -> easiest(m.code(), pcs, problems, open, targetDifficulty).ifPresent(pc -> {
                     used.add(pc.problemId());
-                    out.put(pc.problemId(), new Candidate(pc.problemId(), m.code(), "NEW", "New concept: " + m.name()
+                    out.put(pc.problemId(), candidate(pc, "NEW", "New concept: " + m.name()
                             + (m.prerequisites().isEmpty() ? ", a foundation for later topics."
                                : ". Its prerequisites (" + String.join(", ", m.prerequisites()) + ") are in place.")));
                 }));
@@ -199,9 +207,9 @@ public class RecommendationService {
                         && !used.contains(pc.problemId()) && pc.problemId() != solved.problemId()
                         && !"SOLVED".equals(problems.get(pc.problemId()).status()))
                 .min((a, b) -> Integer.compare(a.tier(), b.tier()))
-                .map(pc -> new Candidate(pc.problemId(), pc.conceptCode(), "TRANSFER",
-                        "Transfer test: you solved “" + problems.get(solved.problemId()).title() + "” (" + solved.conceptCode() + " "
-                                + tierPhrase(solved.tier()) + "). This applies the same idea " + tierPhrase(pc.tier()) + "."));
+                .map(pc -> candidate(pc, "TRANSFER", "Transfer test: you solved “" + problems.get(solved.problemId()).title()
+                        + "” (" + solved.conceptCode() + " " + tierPhrase(solved.tier()) + "). This applies the same idea "
+                        + tierPhrase(pc.tier()) + "."));
     }
 
     private Optional<ProblemConcept> easiest(String concept, List<ProblemConcept> pcs, Map<Long, Problem> problems,
