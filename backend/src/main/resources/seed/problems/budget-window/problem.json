@@ -1,0 +1,44 @@
+{
+  "title": "Longest Affordable Streak",
+  "difficulty": "EASY",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 20,
+  "maxN": 100000,
+  "constraints": "1 ≤ n ≤ 10^5; 1 ≤ c_i ≤ 10^4; 1 ≤ B ≤ 10^9",
+  "concepts": {
+    "sliding-window": 1,
+    "two-pointers": 1
+  },
+  "hints": [
+    "All costs are positive. If a window is too expensive, does extending it help?",
+    "Grow the right end one step at a time; shrink from the left while the total exceeds B.",
+    "Each index enters and leaves the window at most once."
+  ],
+  "samples": [
+    "01",
+    "02"
+  ],
+  "generated": [
+    {
+      "seed": 61,
+      "n": 40
+    },
+    {
+      "seed": 62,
+      "n": 5000
+    },
+    {
+      "seed": 63,
+      "n": 100000
+    },
+    {
+      "seed": 64,
+      "n": 100000
+    },
+    {
+      "seed": 65,
+      "n": 3
+    }
+  ]
+}

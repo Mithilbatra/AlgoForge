@@ -1,0 +1,1 @@
+Since costs are positive, a sliding window works: extend the right end and shrink the left end while the sum exceeds `B`, recording the best length. Both pointers only move forward, giving O(n) time and O(1) extra memory. Checking every pair of endpoints is O(n²).

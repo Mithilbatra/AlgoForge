@@ -1,0 +1,1 @@
+Scan prefix sums and keep a hash map counting how many times each prefix value has appeared (start with `{0: 1}`). At position `r`, add `count[P[r] − k]`. This is O(n) expected time and O(n) memory. With all zeros and `k = 0` the answer is n(n+1)/2 ≈ 5·10^9, which overflows 32-bit integers.

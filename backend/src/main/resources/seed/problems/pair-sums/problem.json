@@ -1,0 +1,44 @@
+{
+  "title": "Matching Pairs",
+  "difficulty": "EASY",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 15,
+  "maxN": 100000,
+  "constraints": "1 ≤ n ≤ 10^5; |a_i| ≤ 10^9; |k| ≤ 2·10^9",
+  "concepts": {
+    "hashing": 1,
+    "arrays": 1
+  },
+  "hints": [
+    "For each element, the partner it needs is fully determined: k − a_i.",
+    "Count values you have already seen in a hash map, so each element only looks backwards.",
+    "a_i + a_j can reach 2·10^9 and the pair count about 5·10^9. Watch your integer types."
+  ],
+  "samples": [
+    "01",
+    "02"
+  ],
+  "generated": [
+    {
+      "seed": 71,
+      "n": 50
+    },
+    {
+      "seed": 72,
+      "n": 5000
+    },
+    {
+      "seed": 73,
+      "n": 100000
+    },
+    {
+      "seed": 74,
+      "n": 100000
+    },
+    {
+      "seed": 75,
+      "n": 100000
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+Use a disjoint-set union. Start with `n` groups and decrement the count whenever `union(u, v)` joins two different roots. With union by size and path compression the total is O((n + m) α(n)). Rebuilding components with BFS after every cable is O(m · (n + m)).

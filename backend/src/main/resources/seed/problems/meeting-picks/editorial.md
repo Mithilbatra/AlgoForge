@@ -1,0 +1,1 @@
+Exchange argument: some optimal schedule starts with the talk that ends earliest. Sort by end time, then greedily take each talk whose start is at least the last chosen end. The cost is O(n log n). Sorting by start time or by duration gives wrong answers on simple counterexamples.

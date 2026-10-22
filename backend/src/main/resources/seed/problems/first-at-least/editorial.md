@@ -1,0 +1,1 @@
+Binary search each query for the leftmost index with `a[i] ≥ x` (a "lower bound"). Each query costs O(log n), so the whole input is processed in O((n + q) log n) time and O(n) memory. A linear scan per query is O(n·q) = 10^10 operations at the limits and will not finish in time.

@@ -1,0 +1,1 @@
+Breadth-first search from `S` visits cells in order of distance, so the first time `E` is reached gives the answer. This is O(r·c) time and memory. An iterative queue avoids the recursion-depth problems of DFS on long corridors.

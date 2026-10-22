@@ -1,0 +1,43 @@
+{
+  "title": "Bakery Ovens",
+  "difficulty": "HARD",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 35,
+  "maxN": 100000,
+  "constraints": "1 ≤ n ≤ 10^5; 1 ≤ t_i ≤ 10^9; 1 ≤ k ≤ 10^9",
+  "concepts": {
+    "binary-search": 3
+  },
+  "hints": [
+    "Instead of simulating minute by minute, ask: given a deadline T, how many trays are done by then?",
+    "That count never decreases as T grows.",
+    "The count can exceed the 64-bit range if you choose a huge upper bound and keep adding. Stop summing once you reach k, or bound T by min(t)·k."
+  ],
+  "samples": [
+    "01",
+    "02"
+  ],
+  "generated": [
+    {
+      "seed": 31,
+      "n": 30
+    },
+    {
+      "seed": 32,
+      "n": 5000
+    },
+    {
+      "seed": 33,
+      "n": 100000
+    },
+    {
+      "seed": 34,
+      "n": 100000
+    },
+    {
+      "seed": 35,
+      "n": 100000
+    }
+  ]
+}

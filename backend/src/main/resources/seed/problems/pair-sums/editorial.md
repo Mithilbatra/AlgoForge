@@ -1,0 +1,1 @@
+Scan left to right with a hash map of counts. For each `a_j`, add `count[k − a_j]`, then record `a_j`. That is O(n) expected time. The answer can reach n(n−1)/2 ≈ 5·10^9 and `k − a_j` can exceed the 32-bit range, so use 64-bit integers. The double loop is O(n²).

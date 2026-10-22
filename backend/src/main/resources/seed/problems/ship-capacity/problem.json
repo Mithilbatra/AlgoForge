@@ -1,0 +1,17 @@
+{
+  "title": "Courier Capacity",
+  "difficulty": "MEDIUM",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 25,
+  "maxN": 100000,
+  "constraints": "1 ≤ d ≤ n ≤ 10^5; 1 ≤ w_i ≤ 10^4",
+  "concepts": {"binary-search": 2, "greedy": 2},
+  "hints": [
+    "If a capacity C is enough, is C + 1 also enough?",
+    "For a fixed C, checking feasibility is a single greedy pass: load parcels until the next one would not fit.",
+    "The answer lies between max(w) and sum(w). Search that range."
+  ],
+  "samples": ["01", "02"],
+  "generated": [{"seed": 21, "n": 40}, {"seed": 22, "n": 3000}, {"seed": 23, "n": 100000}, {"seed": 24, "n": 100000}]
+}

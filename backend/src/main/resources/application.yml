@@ -1,0 +1,68 @@
+spring:
+  application.name: algoforge
+  threads.virtual.enabled: true
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/algoforge}
+    username: ${DATABASE_USER:algoforge}
+    password: ${DATABASE_PASSWORD:algoforge}
+  jackson:
+    default-property-inclusion: non_null
+  session.jdbc.initialize-schema: never   # created by Flyway (V3)
+
+server:
+  port: ${PORT:8080}
+  # Tomcat's RemoteIpValve: X-Forwarded-For is read right to left and only through trusted private/loopback proxies.
+  # Deploy behind a reverse proxy that appends the real client address (see README, "Security model").
+  forward-headers-strategy: native
+  servlet.session:
+    timeout: 12h
+    cookie:
+      name: AFSESSION
+      http-only: true
+      same-site: lax
+      secure: ${COOKIE_SECURE:false}
+
+management:
+  endpoints.web.exposure.include: health,info,metrics
+  endpoint.health.probes.enabled: true
+
+springdoc:
+  api-docs.path: /api/docs
+  swagger-ui.path: /api/docs/ui
+
+algoforge:
+  worker:
+    threads: ${WORKER_THREADS:2}
+    poll-interval-ms: 500
+    stale-after-seconds: 300
+    max-attempts: 2
+  sandbox:
+    docker: ${DOCKER_BIN:docker}
+    runtime: ${SANDBOX_RUNTIME:}      # e.g. runsc (gVisor) for an extra isolation layer
+    pids-limit: 128
+    output-limit-kb: 8192
+    compile-timeout-seconds: 30
+    images:
+      python: algoforge-sandbox-python:1
+      cpp: algoforge-sandbox-cpp:1
+      java: algoforge-sandbox-java:1
+  scoring:
+    weights:
+      correctness: 35
+      time: 20
+      space: 15
+      robustness: 15
+      readability: 10
+      language: 5
+  ai:
+    claude-api-key: ${ANTHROPIC_API_KEY:}
+    gemini-api-key: ${GEMINI_API_KEY:}
+    dual-mode: ${AI_DUAL_MODE:false}
+    timeout-seconds: 120
+    requests-per-user-per-hour: ${AI_REQUESTS_PER_HOUR:20}
+    cache-days: 30
+  limits:
+    submissions-per-minute: ${SUBMISSIONS_PER_MINUTE:10}
+    runs-per-minute: ${RUNS_PER_MINUTE:20}
+    logins-per-15-minutes: ${LOGINS_PER_15_MINUTES:10}
+    registrations-per-15-minutes: ${REGISTRATIONS_PER_15_MINUTES:5}

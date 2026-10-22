@@ -1,0 +1,17 @@
+{
+  "title": "Network Groups",
+  "difficulty": "MEDIUM",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 25,
+  "maxN": 100000,
+  "constraints": "1 ≤ n, m ≤ 10^5; 1 ≤ u, v ≤ n (self-links and repeated links allowed)",
+  "concepts": {"dsu": 1, "graph-traversal": 2},
+  "hints": [
+    "Re-running a traversal after every new link repeats almost all of the work.",
+    "Keep a representative for each group; a new link either merges two groups or does nothing.",
+    "Union by size plus path compression makes each operation nearly constant time."
+  ],
+  "samples": ["01", "02"],
+  "generated": [{"seed": 111, "n": 30}, {"seed": 112, "n": 5000}, {"seed": 113, "n": 100000}, {"seed": 114, "n": 100000}]
+}

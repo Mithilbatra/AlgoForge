@@ -1,0 +1,15 @@
+#!/bin/bash
+# Usage: af-run <time_limit_seconds> <file_size_limit_kb> <command...>
+# Runs the command (stdin passed through) under a wall-clock limit and prints a framed result:
+#   line 1: "<exit_code> <wall_seconds> <max_rss_kb> <stdout_bytes> <stderr_bytes>"
+#   then <stderr_bytes> of stderr (capped at 64 KiB), then <stdout_bytes> of stdout.
+tl=$1; fl=$2; shift 2
+d=$(mktemp -d)
+( ulimit -f "$fl"; exec /usr/bin/time -f '%e %M' -o "$d/stat" timeout -s KILL "$tl" "$@" ) > "$d/out" 2> "$d/err"
+rc=$?
+kill -9 -1 2>/dev/null   # reap anything the program left running (never PID 1 or this shell)
+read -r wall mem < <(tail -n 1 "$d/stat" 2>/dev/null)
+head -c 65536 "$d/err" > "$d/err2"
+printf '%s %s %s %s %s\n' "$rc" "${wall:-0}" "${mem:-0}" "$(stat -c %s "$d/out")" "$(stat -c %s "$d/err2")"
+cat "$d/err2" "$d/out"
+rm -rf "$d"

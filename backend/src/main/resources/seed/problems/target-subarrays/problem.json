@@ -1,0 +1,17 @@
+{
+  "title": "Exact Sum Segments",
+  "difficulty": "MEDIUM",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 25,
+  "maxN": 100000,
+  "constraints": "1 ≤ n ≤ 10^5; |a_i| ≤ 10^4; |k| ≤ 10^9",
+  "concepts": {"prefix-sums": 2, "hashing": 2},
+  "hints": [
+    "A segment l..r has sum P[r] − P[l−1]. Rewrite 'segment sum equals k' in terms of prefix sums.",
+    "While scanning left to right, how many earlier prefix sums equal P[r] − k?",
+    "Values can be negative, so a two-pointer window does not work here. The count can reach about 5·10^9."
+  ],
+  "samples": ["01", "02"],
+  "generated": [{"seed": 51, "n": 50}, {"seed": 52, "n": 4000}, {"seed": 53, "n": 100000}, {"seed": 54, "n": 100000}]
+}

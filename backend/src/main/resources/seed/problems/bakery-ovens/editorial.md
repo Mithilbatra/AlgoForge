@@ -1,0 +1,1 @@
+By minute `T`, oven `i` has finished `⌊T / t_i⌋` trays, and the total is non-decreasing in `T`. Binary search on the answer in `[1, min(t) · k]`, at O(n log(min(t)·k)) total. The catch is overflow: with a careless upper bound such as 10^18 and small `t_i`, the sum exceeds the 64-bit range. Stop summing as soon as it reaches `k`.

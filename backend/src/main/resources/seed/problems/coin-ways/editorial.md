@@ -1,0 +1,1 @@
+Unbounded-knapsack counting: loop over coins on the outside and sums on the inside, `ways[s] = (ways[s] + ways[s − c]) mod p`. Putting coins on the outside counts each multiset once. Swapping the loops counts ordered sequences, a plausible-looking but wrong answer. The cost is O(n·S) time and O(S) memory.

@@ -1,0 +1,18 @@
+{
+  "title": "Warehouse Escape",
+  "difficulty": "MEDIUM",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 25,
+  "maxN": 500,
+  "inputSizePower": 2,
+  "constraints": "1 ≤ r, c ≤ 500; the grid contains exactly one S and one E",
+  "concepts": {"graph-traversal": 1, "stacks-queues": 1},
+  "hints": [
+    "Every move costs the same. Which traversal finds shortest paths in unweighted graphs?",
+    "Process cells in a queue in order of distance; mark a cell visited when you push it, not when you pop it.",
+    "Recursive DFS can exceed the stack on a 500×500 serpentine maze, and it does not give shortest paths anyway."
+  ],
+  "samples": ["01", "02"],
+  "generated": [{"seed": 81, "n": 8}, {"seed": 82, "n": 120}, {"seed": 83, "n": 500}, {"seed": 84, "n": 500}, {"seed": 85, "n": 500}]
+}

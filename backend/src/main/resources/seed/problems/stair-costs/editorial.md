@@ -1,0 +1,1 @@
+Let `best[i]` be the minimum cost to stand on position `i`: `best[0] = 0`, `best[1] = c_1`, `best[i] = c_i + min(best[i−1], best[i−2])`. The answer is `min(best[n], best[n−1])`. That is O(n) time, and O(1) memory if you keep only two values. Recursion without memoisation is exponential.

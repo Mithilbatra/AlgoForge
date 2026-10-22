@@ -1,0 +1,1 @@
+Feasibility is monotone in `C`: a larger van never needs more days. Checking a fixed `C` takes one greedy pass in O(n). Binary search `C` over `[max(w), sum(w)]` for O(n log(sum w)) total. Trying every capacity one by one is O(n · sum(w)) and too slow.

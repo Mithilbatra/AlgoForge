@@ -1,0 +1,44 @@
+{
+  "title": "Stepping Stones",
+  "difficulty": "EASY",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 15,
+  "maxN": 100000,
+  "constraints": "1 ≤ n ≤ 10^5; 0 ≤ c_i ≤ 10^4",
+  "concepts": {
+    "dp": 1,
+    "recursion": 1
+  },
+  "hints": [
+    "The cheapest way to stand on stone i depends only on the cheapest ways to stand on stones i−1 and i−2.",
+    "Plain recursion recomputes the same stones exponentially many times. Store each answer once.",
+    "You only ever need the last two values."
+  ],
+  "samples": [
+    "01",
+    "02"
+  ],
+  "generated": [
+    {
+      "seed": 91,
+      "n": 30
+    },
+    {
+      "seed": 92,
+      "n": 5000
+    },
+    {
+      "seed": 93,
+      "n": 100000
+    },
+    {
+      "seed": 94,
+      "n": 100000
+    },
+    {
+      "seed": 95,
+      "n": 2
+    }
+  ]
+}

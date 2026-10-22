@@ -1,0 +1,44 @@
+{
+  "title": "Range Totals",
+  "difficulty": "EASY",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 15,
+  "maxN": 100000,
+  "constraints": "1 ≤ n, q ≤ 10^5; |a_i| ≤ 10^9; 1 ≤ l ≤ r ≤ n",
+  "concepts": {
+    "prefix-sums": 1,
+    "arrays": 1
+  },
+  "hints": [
+    "Recomputing every range from scratch repeats a lot of work.",
+    "If P[i] is the sum of the first i elements, what is the sum of a[l..r]?",
+    "Sums can reach 10^14, so use 64-bit integers."
+  ],
+  "samples": [
+    "01",
+    "02"
+  ],
+  "generated": [
+    {
+      "seed": 41,
+      "n": 60
+    },
+    {
+      "seed": 42,
+      "n": 5000
+    },
+    {
+      "seed": 43,
+      "n": 100000
+    },
+    {
+      "seed": 44,
+      "n": 100000
+    },
+    {
+      "seed": 45,
+      "n": 7
+    }
+  ]
+}

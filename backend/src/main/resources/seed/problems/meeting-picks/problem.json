@@ -1,0 +1,44 @@
+{
+  "title": "Talk Scheduling",
+  "difficulty": "MEDIUM",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 20,
+  "maxN": 100000,
+  "constraints": "1 ≤ n ≤ 10^5; 0 ≤ s_i < e_i ≤ 10^9",
+  "concepts": {
+    "greedy": 1,
+    "sorting": 1
+  },
+  "hints": [
+    "Try small counterexamples for 'earliest start first' and 'shortest talk first'.",
+    "Which talk leaves the most room for everything after it?",
+    "Sort by end time and take every talk that starts no earlier than the last chosen end."
+  ],
+  "samples": [
+    "01",
+    "02"
+  ],
+  "generated": [
+    {
+      "seed": 121,
+      "n": 40
+    },
+    {
+      "seed": 122,
+      "n": 5000
+    },
+    {
+      "seed": 123,
+      "n": 100000
+    },
+    {
+      "seed": 124,
+      "n": 100000
+    },
+    {
+      "seed": 125,
+      "n": 5
+    }
+  ]
+}

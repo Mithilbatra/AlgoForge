@@ -1,0 +1,17 @@
+{
+  "title": "First At Least",
+  "difficulty": "EASY",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 256,
+  "estMinutes": 15,
+  "maxN": 100000,
+  "constraints": "1 ≤ n, q ≤ 10^5; −10^9 ≤ a_i, x ≤ 10^9; a is sorted in non-decreasing order",
+  "concepts": {"binary-search": 1, "arrays": 1},
+  "hints": [
+    "The array is sorted. What does comparing x with the middle element tell you about the other half?",
+    "If a[mid] ≥ x, the answer is mid or somewhere to its left; otherwise it is strictly to the right.",
+    "Keep a half-open range [lo, hi) and stop when lo == hi to avoid off-by-one errors."
+  ],
+  "samples": ["01", "02"],
+  "generated": [{"seed": 11, "n": 50}, {"seed": 12, "n": 2000}, {"seed": 13, "n": 100000}, {"seed": 14, "n": 100000}]
+}
