@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Flame, History, Lightbulb, ListChecks, Network, Scale, Send } from "lucide-react";
-import { Badge, Card, ErrorNote, Ring, Spinner } from "@/components/ui";
+import { BackLink, Badge, Card, cx, ErrorNote, Page, Ring, Spinner, Stat, StatStrip, TONE } from "@/components/ui";
 import { ApiError, errorMessage, get } from "@/lib/api";
 import { formatDuration, VERDICT_LABEL, verdictTone } from "@/lib/format";
 import type { OaReport } from "@/lib/types";
@@ -32,64 +31,65 @@ export default function ReportPage() {
     return () => { stop = true; };
   }, [id]);
 
-  if (error) return <div className="p-6"><ErrorNote message={error} /></div>;
-  if (!data) return <div className="p-6"><Spinner label={waiting ? "Finalising: waiting for the last submissions to be judged…" : undefined} /></div>;
+  if (error) return <Page><ErrorNote message={error} /></Page>;
+  if (!data) return <Page><Spinner label={waiting ? "Finalising: waiting for the last submissions to be judged…" : undefined} /></Page>;
   const r = data.report;
   const used = r.secondsUsed;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8">
-      <Link href="/oa" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-fg"><ArrowLeft className="h-4 w-4" aria-hidden />OA Arena</Link>
-      <section className="ember-border relative mb-6 overflow-hidden rounded-3xl p-6 sm:p-8 animate-fade-up">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(500px_200px_at_15%_0%,rgb(255_122_47/0.16),transparent_70%)]" aria-hidden />
-        <div className="relative flex flex-wrap items-center gap-8">
-          <Ring value={r.percentage} size={150} stroke={12} label={`Score ${r.percentage}%`}>
-            <div><p className="font-display text-4xl font-bold tabular-nums">{Math.round(r.percentage)}<span className="text-lg text-faint">%</span></p></div>
-          </Ring>
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent">Assessment report</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">{data.title}</h1>
-            <p className="mt-2 font-display text-2xl font-semibold tabular-nums">{r.totalScore} / {r.maxScore}</p>
-            <p className="mt-1 text-sm text-muted">{new Date(data.startedAt).toLocaleString()} · {r.endReason === "EXPIRED" ? "time ran out" : "submitted"} after {formatDuration(used)}</p>
-          </div>
-          <div className="grid w-full grid-cols-3 gap-3 sm:w-auto">
-            <Stat icon={<CheckCircle2 className="h-4 w-4 text-ok" aria-hidden />} label="Solved" value={String(r.solved)} sub={`${r.partiallySolved} partially`} />
-            <Stat icon={<Send className="h-4 w-4 text-info" aria-hidden />} label="Submissions" value={String(r.timeline.length)} />
-            <Stat icon={<Scale className="h-4 w-4 text-gold" aria-hidden />} label="Scoring" value={r.scoringRules.partialCredit ? "Partial" : "Strict"} sub={r.scoringRules.wrongPenaltyPct ? `−${r.scoringRules.wrongPenaltyPct}%/rejection` : "no penalty"} />
-          </div>
+    <Page>
+      <BackLink href="/oa">OA Arena</BackLink>
+      <div className="mb-6 flex flex-wrap items-center gap-6">
+        <Ring value={r.percentage} size={96} stroke={7} label={`Score ${r.percentage}%`}>
+          <p className="text-xl font-semibold tabular-nums text-fg">{Math.round(r.percentage)}%</p>
+        </Ring>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-faint">Assessment report</p>
+          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-fg">{data.title}</h1>
+          <p className="mt-1 text-sm text-muted">{new Date(data.startedAt).toLocaleString()} · {r.endReason === "EXPIRED" ? "time ran out" : "submitted"} after {formatDuration(used)}</p>
         </div>
-      </section>
+      </div>
+
+      <StatStrip className="mb-6">
+        <Stat label="Score" value={`${r.totalScore} / ${r.maxScore}`} sub={`${r.percentage}%`} />
+        <Stat label="Solved" value={r.solved} sub={`${r.partiallySolved} partially`} />
+        <Stat label="Submissions" value={r.timeline.length} sub={`in ${formatDuration(used)}`} />
+        <Stat label="Scoring" value={r.scoringRules.partialCredit ? "Partial" : "Strict"} sub={r.scoringRules.wrongPenaltyPct ? `−${r.scoringRules.wrongPenaltyPct}% per rejection` : "No penalty"} />
+      </StatStrip>
 
       {r.insights.length > 0 && (
-        <Card title="What to take away" icon={<Lightbulb className="h-4 w-4" />} className="mb-6">
+        <Card title="What to take away" className="mb-6">
           <ul className="space-y-2.5 text-sm">
             {r.insights.map((x, i) => (
-              <li key={i} className="flex gap-3"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ember-fill" aria-hidden /><span className="leading-relaxed">{x}</span></li>
+              <li key={i} className="flex gap-3"><span className="mt-2 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden /><span className="leading-relaxed text-fg">{x}</span></li>
             ))}
           </ul>
         </Card>
       )}
 
-      <Card title="Problems" icon={<ListChecks className="h-4 w-4" />} className="mb-6">
+      <Card title="Problems" className="mb-6 overflow-hidden" padded={false}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted">
-              <tr><th className="py-2 pr-3 font-medium">Problem</th><th className="py-2 pr-3 font-medium">Score</th><th className="py-2 pr-3 font-medium">Time spent</th><th className="py-2 pr-3 font-medium">Attempts</th><th className="py-2 font-medium">Evaluation</th></tr>
+            <thead className="border-b border-line bg-panel-2/60 text-left text-xs text-muted">
+              <tr>
+                <th className="px-5 py-2.5 font-medium">Problem</th><th className="px-3 py-2.5 font-medium">Score</th><th className="px-3 py-2.5 font-medium">Time spent</th>
+                <th className="px-3 py-2.5 font-medium">Attempts</th><th className="px-3 py-2.5 pr-5 font-medium">Evaluation</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {r.problems.map((p) => (
                 <tr key={p.problemId} className="align-top">
-                  <td className="py-2.5 pr-3"><Link className="font-medium hover:text-accent" href={`/problems/${p.problemId}`}>{p.title}</Link>
-                    <div className="mt-1 flex flex-wrap gap-1">{Object.entries(p.verdicts).map(([v, n]) => <Badge key={v} className={verdictTone(v)}>{n}× {VERDICT_LABEL[v]}</Badge>)}</div>
-                    {(p.failedOnSamples > 0 || p.failedOnHiddenTests > 0) && <p className="mt-1 text-xs text-muted">Failed on visible samples {p.failedOnSamples}×, on hidden tests {p.failedOnHiddenTests}×</p>}
+                  <td className="px-5 py-3"><Link className="font-medium text-fg underline-offset-4 hover:underline" href={`/problems/${p.problemId}`}>{p.title}</Link>
+                    <div className="mt-1.5 flex flex-wrap gap-1">{Object.entries(p.verdicts).map(([v, n]) => <Badge key={v} tone={verdictTone(v)}>{n}× {VERDICT_LABEL[v]}</Badge>)}</div>
+                    {(p.failedOnSamples > 0 || p.failedOnHiddenTests > 0) && <p className="mt-1.5 text-xs text-muted">Failed on visible samples {p.failedOnSamples}×, on hidden tests {p.failedOnHiddenTests}×</p>}
                   </td>
-                  <td className="py-2.5 pr-3 tabular-nums">{p.score} / {p.points}</td>
-                  <td className="py-2.5 pr-3 tabular-nums">{formatDuration(p.timeSpentSeconds)} <span className="text-xs text-faint">({Math.round((100 * p.timeSpentSeconds) / Math.max(1, used))}%)</span></td>
-                  <td className="py-2.5 pr-3">{p.attempts}</td>
-                  <td className="py-2.5">
+                  <td className="px-3 py-3 tabular-nums text-fg">{p.score} / {p.points}</td>
+                  <td className="px-3 py-3 tabular-nums text-fg">{formatDuration(p.timeSpentSeconds)} <span className="text-xs text-faint">({Math.round((100 * p.timeSpentSeconds) / Math.max(1, used))}%)</span></td>
+                  <td className="px-3 py-3 text-fg">{p.attempts}</td>
+                  <td className="px-3 py-3 pr-5">
                     {p.evaluation ? <>
-                      <Link className="text-accent hover:underline" href={`/evaluations/${p.evaluation.evaluationId}`}>{p.evaluation.overallScore.toFixed(0)}/100</Link>
-                      {p.evaluation.staticTimeComplexity && <span className="ml-2 text-xs text-muted">{p.evaluation.staticTimeComplexity}</span>}
+                      <Link className="font-medium text-accent hover:underline" href={`/evaluations/${p.evaluation.evaluationId}`}>{p.evaluation.overallScore.toFixed(0)}/100</Link>
+                      {p.evaluation.staticTimeComplexity && <span className="ml-2 font-mono text-xs text-muted">{p.evaluation.staticTimeComplexity}</span>}
                       {p.evaluation.optimisationFindings.map((f, i) => <p key={i} className="mt-1 text-xs text-warn">{f}</p>)}
                     </> : <span className="text-faint">—</span>}
                   </td>
@@ -100,23 +100,23 @@ export default function ReportPage() {
         </div>
       </Card>
 
-      <Card title="Timeline" icon={<History className="h-4 w-4" />} className="mb-6">
+      <Card title="Timeline" className="mb-6">
         {r.timeline.length === 0 ? <p className="text-sm text-muted">No submissions.</p> : (
           <>
-            <div className="relative mb-5 h-12 rounded-xl border border-line bg-[linear-gradient(90deg,var(--color-panel-2),var(--color-panel-3))]" aria-hidden>
+            <div className="relative mb-5 h-8 rounded-md border border-line bg-panel-2/50" aria-hidden>
               {r.timeline.map((t) => (
                 <span key={t.submissionId} title={`${formatDuration(t.atSeconds)} · ${t.title} · ${VERDICT_LABEL[t.status]}`}
-                  className={`absolute top-2.5 h-7 w-2 -translate-x-1/2 rounded-full border ${verdictTone(t.status)}`}
+                  className={cx("absolute top-1.5 h-5 w-1.5 -translate-x-1/2 rounded-sm ring-1 ring-inset", TONE[verdictTone(t.status)])}
                   style={{ left: `${Math.min(100, (100 * t.atSeconds) / Math.max(1, used))}%` }} />
               ))}
             </div>
-            <ol className="space-y-1.5 text-sm">
+            <ol className="divide-y divide-line text-sm">
               {r.timeline.map((t) => (
-                <li key={t.submissionId} className="flex items-center gap-3">
-                  <span className="w-14 font-mono text-xs text-muted tabular-nums">{formatDuration(t.atSeconds)}</span>
-                  <span className="flex-1 truncate">{t.title}</span>
-                  <Badge className={verdictTone(t.status)}>{VERDICT_LABEL[t.status]}</Badge>
-                  {t.total != null && <span className="w-12 text-right text-xs text-muted">{t.passed}/{t.total}</span>}
+                <li key={t.submissionId} className="flex items-center gap-3 py-2">
+                  <span className="w-14 font-mono text-xs tabular-nums text-muted">{formatDuration(t.atSeconds)}</span>
+                  <span className="flex-1 truncate text-fg">{t.title}</span>
+                  <Badge tone={verdictTone(t.status)}>{VERDICT_LABEL[t.status]}</Badge>
+                  {t.total != null && <span className="w-12 text-right font-mono text-xs text-muted">{t.passed}/{t.total}</span>}
                 </li>
               ))}
             </ol>
@@ -125,28 +125,23 @@ export default function ReportPage() {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card title="Concepts to revise" icon={<Network className="h-4 w-4" />}>
+        <Card title="Concepts to revise">
           {r.conceptsToRevise.length === 0 ? <p className="text-sm text-muted">Everything was fully solved.</p>
             : <div className="flex flex-wrap gap-1.5">{r.conceptsToRevise.map((c) => <Badge key={c}>{c}</Badge>)}</div>}
         </Card>
-        <Card title="Recommended follow-up" icon={<Flame className="h-4 w-4" />}>
-          {r.followUps.length === 0 ? <p className="text-sm text-muted">No unsolved follow-up problems for these concepts.</p> : (
-            <ul className="space-y-2 text-sm">
-              {r.followUps.map((f) => <li key={f.problemId}><Link className="font-medium text-accent hover:underline" href={`/problems/${f.problemId}`}>{f.title}</Link><p className="text-xs text-muted">{f.reason}</p></li>)}
+        <Card title="Recommended follow-up" padded={false}>
+          {r.followUps.length === 0 ? <p className="p-5 text-sm text-muted">No unsolved follow-up problems for these concepts.</p> : (
+            <ul className="divide-y divide-line text-sm">
+              {r.followUps.map((f) => (
+                <li key={f.problemId} className="px-5 py-3">
+                  <Link className="font-medium text-fg underline-offset-4 hover:underline" href={`/problems/${f.problemId}`}>{f.title}</Link>
+                  <p className="mt-0.5 text-xs text-muted">{f.reason}</p>
+                </li>
+              ))}
             </ul>
           )}
         </Card>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon?: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-line bg-panel-2/60 px-4 py-3 sm:min-w-32">
-      <p className="flex items-center gap-1.5 text-xs text-muted">{icon}{label}</p>
-      <p className="mt-1 font-display text-xl font-bold tabular-nums">{value}</p>
-      {sub && <p className="text-[11px] text-faint">{sub}</p>}
-    </div>
+    </Page>
   );
 }

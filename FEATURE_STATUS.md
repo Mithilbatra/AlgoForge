@@ -40,7 +40,7 @@ Last full run: 93 backend tests (3 opt-in live tests skipped without keys) and 7
 | Learning | Concept graph (22 concepts, prerequisites), per-dimension Beta estimates with a 30-day half-life, no mastery from a single solve, solution reveals discounted | Tested | `LearningEstimatesTest`, `oldFailuresFadeEvenWhenNewEvidenceArrives`, OA and API flows |
 | Learning | Transfer Test Engine (tier 1 → 2 → 3 within a concept; disguised picks never name the technique), daily session with reasons built once per day, accept/skip/replace, completion on accepted | Tested, verified | e2e recommendations journey, `LearningIntegrationTest`, browser |
 | Dashboard | Recent activity, today's session, weakest concepts, weekly judged/accepted chart, time management from assessments, optional streak | Verified | Browser |
-| UI | Brand mark and logo, dark ember theme, responsive app shell, concept-graph Learning Map, verdict banners, skeleton loading states | Verified | Browser screenshots at 1440 px and on mobile width |
+| UI | Design system (tokens, AA contrast, shared components), light and dark themes with a system default and no flash on load, responsive app shell, concept-graph Learning Map | Verified | Every page screenshotted at 1440 px in both themes and at phone width; 7 Playwright journeys |
 | Ops | Flyway migrations, Dockerfiles, compose (dev DB or full stack), health and metrics endpoints, OpenAPI at `/api/docs`, retention job, audit log | Verified | Full stack started and passed e2e |
 
 ## Known limitations and future work

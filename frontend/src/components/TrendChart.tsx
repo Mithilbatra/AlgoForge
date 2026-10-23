@@ -1,44 +1,66 @@
 "use client";
 
-import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useTheme } from "@/lib/theme";
 
-const axis = { stroke: "#7a8296", fontSize: 11, tickLine: false, axisLine: false };
-const tooltip = {
-  contentStyle: { background: "#151a23", border: "1px solid #2b3341", borderRadius: 12, fontSize: 12, boxShadow: "0 12px 30px -10px rgba(0,0,0,.6)" },
-  labelStyle: { color: "#a3abba" },
+// SVG marks need literal colours; these mirror the design tokens. Neutral marks keep 3:1 against the panel.
+const PALETTE = {
+  light: { grid: "#e4e4e7", axis: "#6b6b75", neutral: "#8b8b94", accent: "#b33d0b", panel: "#ffffff", line: "#e4e4e7", fg: "#18181b", muted: "#52525b" },
+  dark: { grid: "#232327", axis: "#85858f", neutral: "#6b6b75", accent: "#fb923c", panel: "#18181b", line: "#34343a", fg: "#ededef", muted: "#a1a1aa" },
 };
 
+function useChart() {
+  const c = PALETTE[useTheme().resolved];
+  return {
+    c,
+    axis: { stroke: c.axis, fontSize: 12, tickLine: false, axisLine: false },
+    tooltip: {
+      contentStyle: { background: c.panel, border: `1px solid ${c.line}`, borderRadius: 6, fontSize: 12, boxShadow: "none", padding: "6px 10px" },
+      labelStyle: { color: c.muted, marginBottom: 2 },
+      itemStyle: { color: c.fg, padding: 0 },
+    },
+  };
+}
+
 export function TrendChart({ data }: { data: { week: string; accepted: number; judged: number; acceptRate: number }[] }) {
+  const { c, axis, tooltip } = useChart();
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
-        <defs>
-          <linearGradient id="trend-judged" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#60a5fa" stopOpacity={0.35} /><stop offset="1" stopColor="#60a5fa" stopOpacity={0} /></linearGradient>
-          <linearGradient id="trend-accepted" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ff7a2f" stopOpacity={0.55} /><stop offset="1" stopColor="#ff7a2f" stopOpacity={0} /></linearGradient>
-        </defs>
-        <CartesianGrid stroke="#1d232e" vertical={false} />
+      <BarChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barGap={3}>
+        <CartesianGrid stroke={c.grid} vertical={false} />
         <XAxis dataKey="week" {...axis} tickFormatter={(w: string) => w.slice(5)} />
         <YAxis {...axis} allowDecimals={false} />
-        <Tooltip {...tooltip} cursor={{ stroke: "#2b3341" }} />
-        <Area type="monotone" dataKey="judged" name="Judged" stroke="#60a5fa" strokeWidth={2} fill="url(#trend-judged)" />
-        <Area type="monotone" dataKey="accepted" name="Accepted" stroke="#ff7a2f" strokeWidth={2.5} fill="url(#trend-accepted)" />
-      </AreaChart>
+        <Tooltip {...tooltip} cursor={{ fill: c.grid, opacity: 0.5 }} />
+        <Bar dataKey="judged" name="Judged" fill={c.neutral} radius={[3, 3, 0, 0]} maxBarSize={18} />
+        <Bar dataKey="accepted" name="Accepted" fill={c.accent} radius={[3, 3, 0, 0]} maxBarSize={18} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }
 
 export function BenchmarkChart({ points }: { points: { n: number; medianMs: number; minMs: number; maxMs: number }[] }) {
+  const { c, axis, tooltip } = useChart();
   return (
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={points} margin={{ top: 8, right: 16, left: -10, bottom: 0 }}>
-        <CartesianGrid stroke="#1d232e" />
+        <CartesianGrid stroke={c.grid} vertical={false} />
         <XAxis dataKey="n" {...axis} tickFormatter={(n: number) => n.toLocaleString()} />
         <YAxis {...axis} unit=" ms" />
         <Tooltip {...tooltip} />
-        <Line type="monotone" dataKey="maxMs" name="Max" stroke="#7a8296" dot={false} strokeDasharray="4 3" />
-        <Line type="monotone" dataKey="medianMs" name="Median" stroke="#ff7a2f" strokeWidth={2.5} dot={{ r: 3, fill: "#ffc35a", strokeWidth: 0 }} />
-        <Line type="monotone" dataKey="minMs" name="Min" stroke="#7a8296" dot={false} strokeDasharray="4 3" />
+        <Line type="monotone" dataKey="maxMs" name="Max" stroke={c.neutral} dot={false} strokeDasharray="4 3" />
+        <Line type="monotone" dataKey="medianMs" name="Median" stroke={c.accent} strokeWidth={2} dot={{ r: 3, fill: c.accent, strokeWidth: 0 }} />
+        <Line type="monotone" dataKey="minMs" name="Min" stroke={c.neutral} dot={false} strokeDasharray="4 3" />
       </LineChart>
     </ResponsiveContainer>
+  );
+}
+
+/** Legend chips for TrendChart, shown in its card header. */
+export function TrendLegend() {
+  return (
+    <span className="flex items-center gap-4 text-xs text-muted">
+      <span className="flex items-center gap-1.5"><i className="size-2 rounded-sm bg-[#8b8b94] dark:bg-[#6b6b75]" />Judged</span>
+      <span className="flex items-center gap-1.5"><i className="size-2 rounded-sm bg-accent" />Accepted</span>
+    </span>
   );
 }

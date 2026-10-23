@@ -1,20 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, SlidersHorizontal } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 import { useMe } from "@/components/AppShell";
-import { Badge, Button, Card, ErrorNote, Input, Label, PageHeader, Select, Spinner } from "@/components/ui";
+import { Badge, Button, Card, cx, ErrorNote, Input, Label, Page, PageHeader, Segmented, Select, Spinner } from "@/components/ui";
 import { errorMessage, put } from "@/lib/api";
 import { LANGUAGE_LABEL } from "@/lib/format";
+import { useTheme, type ThemePref } from "@/lib/theme";
 import type { ConceptMastery, Preferences } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 import { useTitle } from "@/lib/useTitle";
 
 interface AiStatus { dualMode: boolean; providers: { provider: string; enabled: boolean; configured: boolean; model: string; roles: string[] }[] }
 
+const THEMES: { value: ThemePref; label: string; icon: typeof Sun }[] = [
+  { value: "system", label: "System", icon: Monitor }, { value: "light", label: "Light", icon: Sun }, { value: "dark", label: "Dark", icon: Moon },
+];
+
 export default function SettingsPage() {
   useTitle("Settings");
   const me = useMe();
+  const theme = useTheme();
   const prefs = useApi<Preferences>("/api/me/preferences");
   const concepts = useApi<ConceptMastery[]>("/api/learning/concepts");
   const ai = useApi<AiStatus>("/api/ai/status");
@@ -33,17 +39,21 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-8">
-      <PageHeader kicker="Settings" title="Tune your forge" subtitle={me ? `Signed in as ${me.email}` : undefined} />
-      <div className="grid gap-6">
-        <Card title="Practice preferences" icon={<SlidersHorizontal className="h-4 w-4" />}>
+    <Page width="max-w-3xl">
+      <PageHeader title="Settings" description={me ? `Signed in as ${me.email}` : undefined} />
+      <div className="space-y-6">
+        <Card title="Appearance" description="Follow your system, or pick a theme for this browser">
+          <Segmented label="Theme" value={theme.pref} onChange={theme.setPref} options={THEMES} />
+        </Card>
+
+        <Card title="Practice preferences" description="Used to build your daily session">
           {prefs.error ? <ErrorNote message={prefs.error} /> : !form ? <Spinner /> : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2">
               <div><Label htmlFor="lang">Default language</Label>
                 <Select id="lang" value={form.preferredLanguage} onChange={(e) => setForm({ ...form, preferredLanguage: e.target.value as Preferences["preferredLanguage"] })}>
                   {Object.entries(LANGUAGE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </Select></div>
-              <div><Label htmlFor="min">Daily practice time (minutes)</Label>
+              <div><Label htmlFor="min" hint="minutes">Daily practice time</Label>
                 <Input id="min" type="number" min={10} max={480} value={form.dailyMinutes} onChange={(e) => setForm({ ...form, dailyMinutes: Number(e.target.value) })} /></div>
               <div><Label htmlFor="diff">Preferred difficulty</Label>
                 <Select id="diff" value={form.targetDifficulty} onChange={(e) => setForm({ ...form, targetDifficulty: e.target.value as Preferences["targetDifficulty"] })}>
@@ -54,43 +64,48 @@ export default function SettingsPage() {
               <div className="sm:col-span-2"><Label htmlFor="goal">Goal</Label>
                 <Input id="goal" maxLength={200} placeholder="e.g. Internship OA season" value={form.goalText ?? ""} onChange={(e) => setForm({ ...form, goalText: e.target.value })} /></div>
               <fieldset className="sm:col-span-2">
-                <legend className="mb-1 text-xs font-medium text-muted">Goal concepts (prioritised in daily sessions)</legend>
-                <div className="flex flex-wrap gap-2">
+                <legend className="mb-1.5 text-[13px] font-medium text-fg">Goal concepts <span className="font-normal text-faint">prioritised in daily sessions</span></legend>
+                <div className="flex flex-wrap gap-1.5">
                   {concepts.data?.filter((c) => c.problemsAvailable > 0).map((c) => {
                     const on = form.goalConcepts.includes(c.code);
                     return (
                       <button key={c.code} type="button" aria-pressed={on} onClick={() => setForm({ ...form, goalConcepts: on ? form.goalConcepts.filter((x) => x !== c.code) : [...form.goalConcepts, c.code] })}
-                        className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${on ? "border-accent bg-accent/15 text-accent shadow-[0_0_0_1px_rgb(255_122_47/0.2)]" : "border-line-strong text-muted hover:border-faint hover:text-fg"}`}>{on ? "✓ " : ""}{c.name}</button>
+                        className={cx("h-7 rounded-md border px-2.5 text-[13px] transition-colors", on ? "border-fg bg-fg text-bg" : "border-line-strong text-muted hover:bg-panel-2 hover:text-fg")}>{c.name}</button>
                     );
                   })}
                 </div>
               </fieldset>
-              <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                <input type="checkbox" checked={form.showStreak} onChange={(e) => setForm({ ...form, showStreak: e.target.checked })} />
-                Show a daily streak on the dashboard <span className="text-xs text-faint">(a consistency nudge, not a measure of learning)</span>
+              <label className="flex items-start gap-2.5 text-sm text-fg sm:col-span-2">
+                <input type="checkbox" className="mt-0.5" checked={form.showStreak} onChange={(e) => setForm({ ...form, showStreak: e.target.checked })} />
+                <span>Show a daily streak on the dashboard <span className="block text-xs text-faint">A consistency nudge, not a measure of learning.</span></span>
               </label>
-              <div className="flex items-center gap-3 sm:col-span-2"><Button variant="primary" onClick={save}>Save preferences</Button>{msg && <span className="text-xs text-muted">{msg}</span>}</div>
+              <div className="flex items-center gap-3 border-t border-line pt-5 sm:col-span-2"><Button variant="primary" onClick={save}>Save preferences</Button>{msg && <span className="text-xs text-muted">{msg}</span>}</div>
             </div>
           )}
         </Card>
-        <Card title="AI providers" icon={<Bot className="h-4 w-4" />}>
-          {!ai.data ? <Spinner /> : (
-            <div className="space-y-3 text-sm">
-              {ai.data.providers.map((p) => (
-                <div key={p.provider} className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-panel-2/50 px-3.5 py-2.5">
-                  <span className={`h-2 w-2 rounded-full ${p.configured && p.enabled ? "bg-ok shadow-[0_0_8px_rgb(52_211_153)]" : "bg-line-strong"}`} aria-hidden />
-                  <span className="w-16 font-medium capitalize">{p.provider}</span>
-                  {p.configured && p.enabled ? <Badge className="border-ok/40 text-ok">active</Badge> : <Badge>{p.configured ? "disabled" : "no API key"}</Badge>}
-                  <span className="font-mono text-xs text-muted">{p.model}</span>
-                  <span className="text-xs text-faint">roles: {p.roles.join(", ").toLowerCase()}</span>
-                </div>
-              ))}
-              <p className="text-xs text-muted">Dual-provider review is {ai.data.dualMode ? "on" : "off"}. API keys are read by the server from environment variables (see .env.example) and never reach the browser; models are set in the ai_provider_configs table (see README).</p>
-              <p className="text-xs text-faint">Without a provider, evaluations still run every deterministic check: execution, generated tests with the reference solution, benchmarks and static analysis.</p>
-            </div>
+
+        <Card title="AI providers" description="Used for reviews, test proposals and Forge Coach" padded={false}>
+          {!ai.data ? <div className="p-5"><Spinner /></div> : (
+            <>
+              <ul className="divide-y divide-line">
+                {ai.data.providers.map((p) => (
+                  <li key={p.provider} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+                    <span className={cx("size-2 rounded-full", p.configured && p.enabled ? "bg-ok" : "bg-line-strong")} aria-hidden />
+                    <span className="w-20 font-medium capitalize text-fg">{p.provider}</span>
+                    {p.configured && p.enabled ? <Badge tone="ok">active</Badge> : <Badge>{p.configured ? "disabled" : "no API key"}</Badge>}
+                    <span className="font-mono text-xs text-muted">{p.model}</span>
+                    <span className="ml-auto text-xs text-faint">roles: {p.roles.join(", ").toLowerCase()}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="space-y-1.5 border-t border-line px-5 py-4 text-xs">
+                <p className="text-muted">Dual-provider review is {ai.data.dualMode ? "on" : "off"}. API keys are read by the server from environment variables (see .env.example) and never reach the browser; models are set in the ai_provider_configs table (see README).</p>
+                <p className="text-faint">Without a provider, evaluations still run every deterministic check: execution, generated tests with the reference solution, benchmarks and static analysis.</p>
+              </div>
+            </>
           )}
         </Card>
       </div>
-    </div>
+    </Page>
   );
 }

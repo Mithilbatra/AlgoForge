@@ -22,7 +22,7 @@ export function Countdown({ remainingMs, receivedAt, onExpire }: { remainingMs: 
   }, [left === 0]);
   return (
     <span role="timer" aria-live="off" aria-label="Time remaining"
-      className={cx("font-mono text-base tabular-nums", left < 60_000 ? "text-bad" : left < 5 * 60_000 ? "text-warn" : "text-fg")}>
+      className={cx("font-mono text-sm font-medium tabular-nums", left < 60_000 ? "text-bad" : left < 5 * 60_000 ? "text-warn" : "text-fg")}>
       {formatDuration(left / 1000)}
     </span>
   );

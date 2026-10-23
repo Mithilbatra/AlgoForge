@@ -1,84 +1,200 @@
-import { useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
-import { AlertTriangle, Inbox } from "lucide-react";
+import Link from "next/link";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { AlertTriangle, ChevronLeft, Inbox, type LucideIcon } from "lucide-react";
 import { verdictTone, VERDICT_LABEL } from "@/lib/format";
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
 }
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+/** Status colours for badges and chips: a 10% tint, the colour as text, and a hairline ring. */
+export const TONE = {
+  neutral: "bg-panel-2 text-muted ring-line",
+  accent: "bg-accent/10 text-accent ring-accent/25",
+  ok: "bg-ok/10 text-ok ring-ok/25",
+  bad: "bg-bad/10 text-bad ring-bad/25",
+  warn: "bg-warn/10 text-warn ring-warn/25",
+  info: "bg-info/10 text-info ring-info/25",
+  violet: "bg-violet/10 text-violet ring-violet/25",
+} as const;
+export type Tone = keyof typeof TONE;
 
-export function Button({ variant = "secondary", size = "md", className, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: "sm" | "md" | "lg" }) {
-  const v = {
-    primary: "ember-fill text-[#1a0c04] font-semibold shadow-[0_8px_24px_-8px_rgb(255_122_47/0.7),inset_0_1px_0_rgb(255_255_255/0.35)] hover:brightness-110 hover:shadow-[0_10px_30px_-6px_rgb(255_122_47/0.8),inset_0_1px_0_rgb(255_255_255/0.35)]",
-    secondary: "bg-panel-2 text-fg border border-line-strong hover:border-faint/70 hover:bg-panel-3",
-    ghost: "text-muted hover:text-fg hover:bg-panel-2",
-    danger: "bg-bad/10 text-bad border border-bad/40 hover:bg-bad/20",
-  }[variant];
-  const s = size === "sm" ? "h-8 px-3 text-xs" : size === "lg" ? "h-11 px-5 text-[15px]" : "h-9 px-4 text-sm";
-  return <button className={cx("inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap", v, s, className)} {...p} />;
+// ---- layout -----------------------------------------------------------------------------------------------------
+
+/** Page container: one width and gutter for every screen. */
+export function Page({ children, width = "max-w-6xl" }: { children: ReactNode; width?: string }) {
+  return <div className={cx("mx-auto px-4 py-8 sm:px-8", width)}>{children}</div>;
 }
 
-export function Card({ title, icon, actions, children, className, glow = false, padded = true }: {
-  title?: ReactNode; icon?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; glow?: boolean; padded?: boolean;
+export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="min-w-0 max-w-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">{title}</h1>
+        {description && <p className="mt-1.5 text-sm leading-relaxed text-muted">{description}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+export function BackLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="mb-4 inline-flex items-center gap-1 text-[13px] text-muted transition-colors hover:text-fg">
+      <ChevronLeft className="size-4" aria-hidden />{children}
+    </Link>
+  );
+}
+
+/** Section heading inside a page, above a group of cards. */
+export function SectionTitle({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className="text-sm font-semibold text-fg">{children}</h2>
+      {actions}
+    </div>
+  );
+}
+
+export function Card({ title, description, icon, actions, children, className, bodyClassName, padded = true }: {
+  title?: ReactNode; description?: ReactNode; icon?: ReactNode; actions?: ReactNode; children: ReactNode;
+  className?: string; bodyClassName?: string; padded?: boolean;
 }) {
   return (
-    <section className={cx("rounded-2xl", glow ? "ember-border shadow-[0_24px_60px_-30px_rgb(255_122_47/0.45)]" : "surface", className)}>
+    <section className={cx("card", className)}>
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-3 px-5 pt-4 pb-1">
-          <h2 className="flex items-center gap-2 text-[15px] font-semibold text-fg">
-            {icon && <span className="text-accent">{icon}</span>}
-            {title}
-          </h2>
-          {actions}
+        <header className="flex min-h-12 items-center justify-between gap-3 border-b border-line px-5 py-2.5">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-fg">
+              {icon && <span className="text-faint [&_svg]:size-4">{icon}</span>}
+              {title}
+            </h2>
+            {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
+          </div>
+          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
         </header>
       )}
-      <div className={padded ? "p-5 pt-3" : undefined}>{children}</div>
+      <div className={cx(padded && "p-5", bodyClassName)}>{children}</div>
     </section>
   );
 }
 
-export function Badge({ children, className, title }: { children: ReactNode; className?: string; title?: string }) {
-  return <span title={title} className={cx("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-4", className ?? "border-line-strong bg-panel-2/60 text-muted")}>{children}</span>;
+/** A quiet notice row (empty-state nudges, in-progress banners). */
+export function Callout({ icon, children, action, tone = "neutral" }: { icon?: ReactNode; children: ReactNode; action?: ReactNode; tone?: "neutral" | "accent" | "warn" }) {
+  return (
+    <div className={cx("flex items-center gap-3 rounded-lg border px-4 py-3 text-sm",
+      tone === "accent" ? "border-accent/25 bg-accent/5" : tone === "warn" ? "border-warn/25 bg-warn/5" : "border-line bg-panel-2/60")}>
+      {icon && <span className={cx("shrink-0 [&_svg]:size-4", tone === "accent" ? "text-accent" : tone === "warn" ? "text-warn" : "text-faint")}>{icon}</span>}
+      <div className="min-w-0 flex-1 text-muted">{children}</div>
+      {action}
+    </div>
+  );
 }
 
-export function Verdict({ status, short = false }: { status?: string; short?: boolean }) {
+// ---- actions ----------------------------------------------------------------------------------------------------
+
+type Variant = "primary" | "secondary" | "ghost" | "danger";
+
+const VARIANT: Record<Variant, string> = {
+  primary: "bg-fg text-bg shadow-xs hover:bg-fg/85",
+  secondary: "border border-line-strong bg-panel text-fg shadow-xs hover:bg-panel-2",
+  ghost: "text-muted hover:bg-panel-2 hover:text-fg",
+  danger: "border border-bad/30 bg-bad/10 text-bad hover:bg-bad/15",
+};
+
+const SIZE = {
+  sm: "h-8 gap-1.5 px-2.5 text-[13px] [&_svg]:size-3.5",
+  md: "h-9 gap-2 px-3.5 text-sm [&_svg]:size-4",
+  lg: "h-10 gap-2 px-4 text-sm [&_svg]:size-4",
+};
+
+export function Button({ variant = "secondary", size = "md", className, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: keyof typeof SIZE }) {
+  return (
+    <button
+      className={cx("inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-panel",
+        "disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0", VARIANT[variant], SIZE[size], className)}
+      {...p}
+    />
+  );
+}
+
+/** Same look as Button, for navigation. */
+export function ButtonLink({ href, variant = "secondary", size = "md", className, children }: { href: string; variant?: Variant; size?: keyof typeof SIZE; className?: string; children: ReactNode }) {
+  return (
+    <Link href={href} className={cx("inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-md font-medium transition-colors [&_svg]:shrink-0",
+      VARIANT[variant], SIZE[size], className)}>
+      {children}
+    </Link>
+  );
+}
+
+// ---- status -----------------------------------------------------------------------------------------------------
+
+export function Badge({ children, tone = "neutral", className, title }: { children: ReactNode; tone?: Tone; className?: string; title?: string }) {
+  return (
+    <span title={title} className={cx("inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-xs font-medium ring-1 ring-inset [&_svg]:size-3", TONE[tone], className)}>
+      {children}
+    </span>
+  );
+}
+
+export function Verdict({ status }: { status?: string }) {
   if (!status) return null;
   return (
-    <Badge className={verdictTone(status)}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
-      {short ? status.replaceAll("_", " ") : VERDICT_LABEL[status] ?? status}
+    <Badge tone={verdictTone(status)}>
+      <span className="size-1.5 rounded-full bg-current" aria-hidden />
+      {VERDICT_LABEL[status] ?? status}
     </Badge>
   );
 }
 
-const field = "rounded-lg border border-line-strong bg-panel-2/80 px-3 text-sm text-fg placeholder:text-faint transition-colors hover:border-faint/60 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25";
-// Full width unless the caller sets a width (two width utilities would conflict).
-const width = (c?: string) => (c && /(^|\s)w-/.test(c) ? "" : "w-full");
-
-export function Input(p: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...p} className={cx(field, width(p.className), "h-9", p.className)} />;
+export function Meter({ value, tone = "bg-accent", label }: { value: number; tone?: string; label: string }) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-panel-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label={label}>
+      <div className={cx("h-full rounded-full transition-[width] duration-500", tone)} style={{ width: `${pct}%` }} />
+    </div>
+  );
 }
 
-export function Select(p: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...p} className={cx(field, width(p.className), "h-9 pr-8", p.className)} />;
+/** Circular gauge; children render in the centre. */
+export function Ring({ value, size = 120, stroke = 8, label, children }: { value: number; size?: number; stroke?: number; label: string; children?: ReactNode }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }} role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--panel-3)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--accent)" strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} className="transition-[stroke-dashoffset] duration-700 ease-out" />
+      </svg>
+      <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
+    </div>
+  );
 }
 
-export function Textarea(p: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...p} className={cx(field, width(p.className), "py-2 font-mono text-[13px]", p.className)} />;
+/** One figure in a stats strip (see StatStrip). */
+export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
+  return (
+    <div className="bg-panel px-5 py-4">
+      <p className="text-[13px] text-muted">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-fg">{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-faint">{sub}</p>}
+    </div>
+  );
 }
 
-export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
-  return <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-medium text-muted">{children}</label>;
+/** Hairline-separated grid of Stat cells (the 1px gaps show the border colour behind them). */
+export function StatStrip({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cx("grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-(--shadow-card) lg:grid-cols-4", className)}>{children}</div>;
 }
 
 export function Spinner({ label }: { label?: string }) {
   return (
-    <span className="inline-flex items-center gap-2.5 text-sm text-muted" role="status">
-      <span className="relative h-4 w-4" aria-hidden>
-        <span className="absolute inset-0 rounded-full border-2 border-line-strong" />
-        <span className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-accent border-r-gold" />
-      </span>
+    <span className="inline-flex items-center gap-2 text-sm text-muted" role="status">
+      <span className="size-4 animate-spin rounded-full border-2 border-line-strong border-t-fg" aria-hidden />
       {label ?? "Loading…"}
     </span>
   );
@@ -86,8 +202,8 @@ export function Spinner({ label }: { label?: string }) {
 
 export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-bad/40 bg-bad/10 px-3.5 py-2.5 text-sm text-bad">
-      <span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />{message}</span>
+    <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-bad/25 bg-bad/5 px-3 py-2 text-sm text-bad">
+      <span className="flex items-center gap-2"><AlertTriangle className="size-4 shrink-0" aria-hidden />{message}</span>
       {onRetry && <Button size="sm" variant="ghost" onClick={onRetry}>Retry</Button>}
     </div>
   );
@@ -95,89 +211,92 @@ export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () 
 
 export function Empty({ title, children, icon }: { title: string; children?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-line-strong px-6 py-12 text-center">
-      <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl bg-panel-2 text-accent">{icon ?? <Inbox className="h-5 w-5" aria-hidden />}</div>
-      <p className="font-display text-[15px] font-semibold text-fg">{title}</p>
-      {children && <div className="mt-1.5 text-sm text-muted">{children}</div>}
+    <div className="rounded-lg border border-dashed border-line-strong px-6 py-10 text-center">
+      <div className="mx-auto mb-3 grid size-10 place-items-center rounded-md border border-line bg-panel-2 text-muted [&_svg]:size-[18px]">{icon ?? <Inbox aria-hidden />}</div>
+      <p className="text-sm font-medium text-fg">{title}</p>
+      {children && <div className="mx-auto mt-1 max-w-sm text-sm text-muted">{children}</div>}
     </div>
   );
-}
-
-/** Page title block: mono kicker in ember, display title, optional subtitle and actions. */
-export function PageHeader({ kicker, title, subtitle, actions }: { kicker?: string; title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
-  return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4 animate-fade-up">
-      <div className="max-w-3xl">
-        {kicker && <p className="mb-2 font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-accent">{kicker}</p>}
-        <h1 className="text-[1.75rem] font-bold leading-tight tracking-tight sm:text-[2rem]">{title}</h1>
-        {subtitle && <p className="mt-2 text-[15px] leading-relaxed text-muted">{subtitle}</p>}
-      </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
-    </div>
-  );
-}
-
-export function Meter({ value, tone, label }: { value: number; tone?: string; label: string }) {
-  const pct = Math.max(0, Math.min(100, value));
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-line" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label={label}>
-      <div className={cx("h-full rounded-full transition-[width] duration-700", tone ?? "ember-fill")} style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
-/** Circular gauge with the ember gradient; children render in the centre. */
-export function Ring({ value, size = 120, stroke = 10, label, children, tone }: {
-  value: number; size?: number; stroke?: number; label: string; children?: ReactNode; tone?: string;
-}) {
-  const id = useId().replace(/:/g, "");
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(100, value));
-  return (
-    <div className="relative grid place-items-center" style={{ width: size, height: size }} role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
-      <svg width={size} height={size} className="-rotate-90">
-        <defs>
-          <linearGradient id={id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffc35a" /><stop offset="0.5" stopColor="#ff7a2f" /><stop offset="1" stopColor="#ff4d6d" /></linearGradient>
-        </defs>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-line)" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={tone ?? `url(#${id})`} strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} className="transition-[stroke-dashoffset] duration-1000 ease-out" />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
-    </div>
-  );
-}
-
-export function StatTile({ label, value, sub, icon, accent = "text-accent" }: { label: string; value: ReactNode; sub?: ReactNode; icon?: ReactNode; accent?: string }) {
-  return (
-    <div className="surface group relative overflow-hidden rounded-2xl px-5 py-4">
-      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-accent/10 blur-2xl transition-opacity group-hover:opacity-100 opacity-60" aria-hidden />
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted">{label}</p>
-        {icon && <span className={accent}>{icon}</span>}
-      </div>
-      <p className="mt-2 font-display text-[1.75rem] font-bold leading-none tabular-nums">{value}</p>
-      {sub && <p className="mt-1.5 text-xs text-faint">{sub}</p>}
-    </div>
-  );
-}
-
-export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded border border-line-strong bg-bg/60 px-1 font-mono text-[10px] text-muted">{children}</kbd>;
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cx("skeleton rounded-lg", className)} aria-hidden />;
+  return <div className={cx("animate-pulse rounded-md bg-panel-2", className)} aria-hidden />;
 }
 
-/** Celebratory spark burst (forge theme). Purely decorative and disabled for reduced motion. */
-export function Sparks({ count = 14 }: { count?: number }) {
+export function Kbd({ children }: { children: ReactNode }) {
+  return <kbd className="rounded border border-line bg-panel-2 px-1 font-mono text-[11px] text-muted">{children}</kbd>;
+}
+
+// ---- forms ------------------------------------------------------------------------------------------------------
+
+const field = "rounded-md border border-line-strong bg-panel text-sm text-fg shadow-xs transition-colors placeholder:text-faint hover:border-faint/60 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/15 disabled:opacity-50";
+// Full width unless the caller sets a width (two width utilities would conflict).
+const width = (c?: string) => (c && /(^|\s)w-/.test(c) ? "" : "w-full");
+
+export function Input(p: InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...p} className={cx(field, width(p.className), "h-9 px-3", p.className)} />;
+}
+
+export function Select(p: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...p} className={cx(field, width(p.className), "select-chevron h-9 pl-3 pr-8", p.className)} />;
+}
+
+export function Textarea(p: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...p} className={cx(field, width(p.className), "px-3 py-2 font-mono text-[13px] leading-relaxed", p.className)} />;
+}
+
+export function Label({ children, htmlFor, hint }: { children: ReactNode; htmlFor?: string; hint?: ReactNode }) {
   return (
-    <span className="spark-burst pointer-events-none absolute inset-0" aria-hidden>
-      {Array.from({ length: count }, (_, i) => (
-        <i key={i} style={{ ["--a" as string]: `${(360 / count) * i}deg`, ["--d" as string]: `${38 + (i % 4) * 14}px`, animationDelay: `${(i % 3) * 40}ms` }} />
-      ))}
-    </span>
+    <label htmlFor={htmlFor} className="mb-1.5 block text-[13px] font-medium text-fg">
+      {children}{hint && <span className="ml-1.5 font-normal text-faint">{hint}</span>}
+    </label>
+  );
+}
+
+/** Pill-group radio (filters, theme). Options may be icon-only; the label stays as the accessible name. */
+export function Segmented<T extends string>({ label, value, options, onChange }: {
+  label: string; value: T; onChange: (v: T) => void; options: { value: T; label: string; icon?: LucideIcon; iconOnly?: boolean }[];
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="inline-flex max-w-full shrink-0 overflow-x-auto rounded-md border border-line bg-panel-2 p-0.5">
+      {options.map((o) => {
+        const on = value === o.value;
+        const Icon = o.icon;
+        return (
+          <button key={o.value} type="button" role="radio" aria-checked={on} aria-label={o.iconOnly ? o.label : undefined} title={o.iconOnly ? o.label : undefined}
+            onClick={() => onChange(o.value)}
+            className={cx("inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-[5px] text-[13px] font-medium transition-colors",
+              o.iconOnly ? "w-7 justify-center" : "px-2.5",
+              on ? "bg-panel text-fg shadow-xs ring-1 ring-line" : "text-muted hover:text-fg")}>
+            {Icon && <Icon className="size-3.5" aria-hidden />}
+            {!o.iconOnly && o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Underlined tabs for panels. `dot` marks a tab worth a look (the coach). */
+export function TabBar<T extends string>({ tabs, value, onChange, trailing, size = "md" }: {
+  tabs: { id: T; label: string; icon?: LucideIcon; dot?: boolean }[]; value: T; onChange: (t: T) => void; trailing?: ReactNode; size?: "sm" | "md";
+}) {
+  return (
+    <div role="tablist" className={cx("flex shrink-0 items-stretch gap-5 overflow-x-auto border-b border-line px-4", size === "sm" ? "h-9" : "h-11")}>
+      {tabs.map((t) => {
+        const on = t.id === value;
+        const Icon = t.icon;
+        return (
+          <button key={t.id} role="tab" aria-selected={on} onClick={() => onChange(t.id)}
+            className={cx("-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 text-[13px] font-medium transition-colors",
+              on ? "border-accent text-fg" : "border-transparent text-muted hover:text-fg")}>
+            {Icon && <Icon className={cx("size-4", on ? "text-fg" : "text-faint")} aria-hidden />}
+            {t.label}
+            {t.dot && !on && <span className="size-1.5 rounded-full bg-accent" aria-hidden />}
+          </button>
+        );
+      })}
+      {trailing && <div className="ml-auto flex items-center">{trailing}</div>}
+    </div>
   );
 }

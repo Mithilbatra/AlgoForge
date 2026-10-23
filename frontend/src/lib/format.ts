@@ -1,3 +1,5 @@
+import type { Tone } from "@/components/ui";
+
 export const VERDICT_LABEL: Record<string, string> = {
   QUEUED: "Queued", COMPILING: "Compiling", RUNNING: "Running", ACCEPTED: "Accepted", WRONG_ANSWER: "Wrong answer",
   RUNTIME_ERROR: "Runtime error", TIME_LIMIT_EXCEEDED: "Time limit exceeded", MEMORY_LIMIT_EXCEEDED: "Memory limit exceeded",
@@ -9,28 +11,22 @@ export const VERDICT_SHORT: Record<string, string> = {
   COMPILATION_ERROR: "CE", INTERNAL_ERROR: "IE", SKIPPED: "—", QUEUED: "…", COMPILING: "…", RUNNING: "…",
 };
 
-export function verdictTone(v?: string): string {
+/** Badge tone for a verdict (see TONE in components/ui). */
+export function verdictTone(v?: string): Tone {
   switch (v) {
-    case "ACCEPTED": return "text-ok border-ok/40 bg-ok/10";
-    case "WRONG_ANSWER": return "text-bad border-bad/40 bg-bad/10";
-    case "TIME_LIMIT_EXCEEDED": return "text-warn border-warn/40 bg-warn/10";
-    case "MEMORY_LIMIT_EXCEEDED": return "text-violet border-violet/40 bg-violet/10";
-    case "RUNTIME_ERROR": return "text-bad border-bad/40 bg-bad/10";
-    case "COMPILATION_ERROR": return "text-warn border-warn/40 bg-warn/10";
-    case "QUEUED": case "COMPILING": case "RUNNING": return "text-info border-info/40 bg-info/10";
-    default: return "text-muted border-line-strong bg-panel-2";
+    case "ACCEPTED": return "ok";
+    case "WRONG_ANSWER": case "RUNTIME_ERROR": return "bad";
+    case "TIME_LIMIT_EXCEEDED": case "COMPILATION_ERROR": return "warn";
+    case "MEMORY_LIMIT_EXCEEDED": return "violet";
+    case "QUEUED": case "COMPILING": case "RUNNING": return "info";
+    default: return "neutral";
   }
 }
 
 export const PENDING = ["QUEUED", "COMPILING", "RUNNING"];
 
-export function difficultyTone(d?: string): string {
-  return d === "EASY" ? "text-ok" : d === "MEDIUM" ? "text-warn" : d === "HARD" ? "text-bad" : "text-muted";
-}
-
-export function difficultyPill(d?: string): string {
-  return d === "EASY" ? "text-ok bg-ok/10 border-ok/30" : d === "MEDIUM" ? "text-warn bg-warn/10 border-warn/30"
-    : d === "HARD" ? "text-bad bg-bad/10 border-bad/30" : "text-muted bg-panel-2 border-line-strong";
+export function difficultyTone(d?: string): Tone {
+  return d === "EASY" ? "ok" : d === "MEDIUM" ? "warn" : d === "HARD" ? "bad" : "neutral";
 }
 
 export function formatDuration(totalSeconds: number): string {

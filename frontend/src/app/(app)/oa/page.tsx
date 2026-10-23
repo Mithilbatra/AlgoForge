@@ -3,15 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Briefcase, ClipboardList, GraduationCap, History, Play, Swords, Trophy, Wrench } from "lucide-react";
-import { Badge, Button, Card, Empty, ErrorNote, Input, Label, PageHeader, Ring, Select, Skeleton, Spinner } from "@/components/ui";
+import { ArrowRight, Play, Swords } from "lucide-react";
+import { Badge, Button, ButtonLink, Callout, Card, Empty, ErrorNote, Input, Label, Page, PageHeader, Ring, SectionTitle, Select, Skeleton, Spinner } from "@/components/ui";
 import { errorMessage, post } from "@/lib/api";
-import { difficultyPill, difficultyTone, LANGUAGE_LABEL, relativeTime } from "@/lib/format";
-import type { ConceptMastery, Difficulty, Language, OaDefinition, Page, ProblemSummary } from "@/lib/types";
+import { difficultyTone, LANGUAGE_LABEL, relativeTime } from "@/lib/format";
+import type { ConceptMastery, Difficulty, Language, OaDefinition, Page as Paged, ProblemSummary } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 import { useTitle } from "@/lib/useTitle";
-
-const TEMPLATE_ICONS = [Trophy, Briefcase, GraduationCap];
 
 interface SessionRow { id: number; title: string; status: string; startedAt: string; totalScore?: number; maxScore?: number; endReason?: string }
 
@@ -55,78 +53,79 @@ export default function OaArena() {
   const mine = defs.data?.filter((d) => !d.isTemplate) ?? [];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8">
-      <PageHeader kicker="OA Arena · timed assessments" title="Step into the arena"
-        subtitle="Server-timed assessments with deterministic scoring and a full post-mortem. Templates are practice simulations, not copies of any company's real test." />
+    <Page>
+      <PageHeader title="OA Arena"
+        description="Server-timed assessments with deterministic scoring and a full report afterwards. Templates are practice simulations, not copies of any company's real test." />
       {error && <div className="mb-4"><ErrorNote message={error} /></div>}
       {active && (
-        <Link href={`/oa/${active.id}`} className="ember-border group mb-8 flex items-center justify-between gap-4 rounded-2xl px-5 py-4 animate-fade-up">
-          <span className="flex items-center gap-3">
-            <span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" /><span className="relative inline-flex h-3 w-3 rounded-full bg-accent" /></span>
-            <span><span className="font-display font-semibold text-accent">In progress: </span>{active.title}</span>
-          </span>
-          <span className="flex items-center gap-1 text-sm font-medium text-accent">Resume <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden /></span>
-        </Link>
-      )}
-      <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.2em] text-faint">Templates</p>
-      {!defs.data ? <div className="mb-10 grid gap-4 md:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}</div> : (
-        <div className="mb-10 grid gap-5 md:grid-cols-3">
-          {templates.map((t, i) => {
-            const Icon = TEMPLATE_ICONS[i % TEMPLATE_ICONS.length];
-            return (
-              <Card key={t.id} className="group relative overflow-hidden transition-transform hover:-translate-y-0.5">
-                <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-accent/10 blur-2xl transition-opacity group-hover:bg-accent/20" aria-hidden />
-                <span className="grid h-11 w-11 place-items-center rounded-xl border border-accent/30 bg-accent/10 text-accent"><Icon className="h-5 w-5" aria-hidden /></span>
-                <h2 className="mt-4 font-display text-lg font-semibold">{t.title}</h2>
-                <p className="mt-1 min-h-10 text-sm leading-relaxed text-muted">{t.description}</p>
-                <div className="mt-4 flex items-baseline gap-1.5">
-                  <span className="font-display text-3xl font-bold tabular-nums">{t.durationMinutes}</span><span className="text-sm text-faint">min</span>
-                  <span className="ml-auto font-mono text-xs text-faint">{t.recipe?.slots.reduce((a, s) => a + s.points, 0)} pts</span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {t.recipe?.slots.map((s, j) => <Badge key={j} className={difficultyPill(s.difficulty)}>{s.difficulty.toLowerCase()} · {s.points}</Badge>)}
-                </div>
-                <p className="mt-3 text-xs text-faint">{t.partialCredit ? "Partial credit per test" : "All-or-nothing"}{t.wrongPenaltyPct > 0 ? ` · −${t.wrongPenaltyPct}% per rejection` : ""}</p>
-                <Button variant="primary" className="mt-5 w-full" disabled={busy !== undefined || !!active} onClick={() => fromTemplate(t)}>
-                  {busy === t.id ? "Preparing…" : "Pick problems and start"}
-                </Button>
-              </Card>
-            );
-          })}
+        <div className="mb-8">
+          <Callout tone="accent" icon={<span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-60" /><span className="relative inline-flex size-2 rounded-full bg-accent" /></span>}
+            action={<ButtonLink href={`/oa/${active.id}`} size="sm" variant="primary">Resume<ArrowRight aria-hidden /></ButtonLink>}>
+            <span className="font-medium text-fg">In progress: </span>{active.title}
+          </Callout>
         </div>
       )}
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+
+      <SectionTitle>Templates</SectionTitle>
+      {!defs.data ? <div className="mb-10 grid gap-4 md:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-60" />)}</div> : (
+        <div className="mb-10 grid gap-4 md:grid-cols-3">
+          {templates.map((t) => (
+            <Card key={t.id} className="h-full" bodyClassName="flex h-full flex-col">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-sm font-semibold text-fg">{t.title}</h3>
+                <span className="shrink-0 font-mono text-xs text-faint">{t.recipe?.slots.reduce((a, s) => a + s.points, 0)} pts</span>
+              </div>
+              <p className="mt-1.5 flex-1 text-[13px] leading-relaxed text-muted">{t.description}</p>
+              <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4 text-[13px]">
+                <div><dt className="text-xs text-faint">Duration</dt><dd className="mt-0.5 font-medium text-fg">{t.durationMinutes} min</dd></div>
+                <div><dt className="text-xs text-faint">Scoring</dt><dd className="mt-0.5 font-medium text-fg">{t.partialCredit ? "Partial credit" : "All-or-nothing"}{t.wrongPenaltyPct > 0 ? `, −${t.wrongPenaltyPct}%` : ""}</dd></div>
+              </dl>
+              <div className="mt-3 flex flex-wrap gap-1">
+                {t.recipe?.slots.map((s, j) => <Badge key={j} tone={difficultyTone(s.difficulty)}>{s.difficulty.toLowerCase()} · {s.points}</Badge>)}
+              </div>
+              <Button variant="primary" className="mt-5 w-full" disabled={busy !== undefined || !!active} onClick={() => fromTemplate(t)}>
+                {busy === t.id ? "Preparing…" : "Pick problems and start"}
+              </Button>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <CustomBuilder onCreated={() => defs.reload()} />
         <div className="space-y-6">
-          <Card title="Your assessments" icon={<ClipboardList className="h-4 w-4" />}>
-            {mine.length === 0 ? <p className="text-sm text-muted">Create one, or start from a template.</p> : (
-              <ul className="divide-y divide-line/70">
-                {mine.slice(0, 10).map((d) => (
-                  <li key={d.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+          <Card title="Your assessments" padded={false}>
+            {mine.length === 0 ? <p className="p-5 text-sm text-muted">Create one, or start from a template.</p> : (
+              <ul className="divide-y divide-line">
+                {mine.slice(0, 8).map((d) => (
+                  <li key={d.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{d.title}</p>
+                      <p className="truncate font-medium text-fg">{d.title}</p>
                       <p className="truncate text-xs text-muted">{d.durationMinutes} min · {d.problems.map((p) => p.title).join(", ")}</p>
                     </div>
-                    <Button size="sm" disabled={busy !== undefined || !!active} onClick={() => start(d.id)}><Play className="h-3.5 w-3.5" aria-hidden />{busy === d.id ? "Starting…" : "Start"}</Button>
+                    <Button size="sm" disabled={busy !== undefined || !!active} onClick={() => start(d.id)}><Play aria-hidden />{busy === d.id ? "Starting…" : "Start"}</Button>
                   </li>
                 ))}
               </ul>
             )}
           </Card>
-          <Card title="History" icon={<History className="h-4 w-4" />}>
-            {!sessions.data ? <Skeleton className="h-24" /> : sessions.data.length === 0 ? <Empty title="No assessments yet" icon={<Swords className="h-5 w-5" />} /> : (
-              <ul className="divide-y divide-line/70">
+          <Card title="History" padded={false}>
+            {!sessions.data ? <div className="p-5"><Skeleton className="h-24" /></div> : sessions.data.length === 0 ? <div className="p-5"><Empty title="No assessments yet" icon={<Swords aria-hidden />} /></div> : (
+              <ul className="divide-y divide-line">
                 {sessions.data.map((s) => {
                   const pct = s.maxScore ? Math.round((100 * Number(s.totalScore ?? 0)) / s.maxScore) : 0;
                   return (
-                    <li key={s.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                    <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{s.title}</p>
+                        <p className="truncate font-medium text-fg">{s.title}</p>
                         <p className="text-xs text-muted">{relativeTime(s.startedAt)} · {s.status === "COMPLETED" ? (s.endReason === "EXPIRED" ? "time ran out" : "submitted") : s.status.toLowerCase()}</p>
                       </div>
                       {s.status === "COMPLETED"
-                        ? <Link className="flex items-center gap-3 text-accent hover:underline" href={`/oa/${s.id}/report`}><span className="font-mono text-xs text-muted">{Number(s.totalScore).toFixed(0)} / {s.maxScore}</span><Ring value={pct} size={34} stroke={4} label={`${pct}%`}><span className="text-[9px] font-semibold text-fg">{pct}</span></Ring></Link>
-                        : <Link className="font-medium text-accent hover:underline" href={`/oa/${s.id}`}>Resume</Link>}
+                        ? <Link className="flex items-center gap-3 text-[13px] text-muted hover:text-fg" href={`/oa/${s.id}/report`}>
+                            <span className="font-mono text-xs">{Number(s.totalScore).toFixed(0)} / {s.maxScore}</span>
+                            <Ring value={pct} size={32} stroke={3.5} label={`${pct}%`}><span className="text-[9px] font-semibold text-fg">{pct}</span></Ring>
+                          </Link>
+                        : <ButtonLink href={`/oa/${s.id}`} size="sm">Resume</ButtonLink>}
                     </li>
                   );
                 })}
@@ -135,7 +134,7 @@ export default function OaArena() {
           </Card>
         </div>
       </div>
-    </div>
+    </Page>
   );
 }
 
@@ -149,7 +148,7 @@ function CustomBuilder({ onCreated }: { onCreated: () => void }) {
   const [picked, setPicked] = useState<Record<number, number>>({});
   const [random, setRandom] = useState({ count: 0, difficulty: "" as Difficulty | "", concept: "", points: 100 });
   const [msg, setMsg] = useState<string>();
-  const problems = useApi<Page<ProblemSummary>>("/api/problems?judgeable=true&size=100");
+  const problems = useApi<Paged<ProblemSummary>>("/api/problems?judgeable=true&size=100");
   const concepts = useApi<ConceptMastery[]>("/api/learning/concepts");
 
   async function create() {
@@ -169,10 +168,10 @@ function CustomBuilder({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <Card title="Build a custom assessment" icon={<Wrench className="h-4 w-4" />}>
-      <div className="grid gap-3 sm:grid-cols-2">
+    <Card title="Build a custom assessment" description="Chosen problems, random ones, or both">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><Label htmlFor="t">Title</Label><Input id="t" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} /></div>
-        <div><Label htmlFor="d">Duration (minutes)</Label><Input id="d" type="number" min={5} max={300} value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></div>
+        <div><Label htmlFor="d">Duration</Label><Input id="d" type="number" min={5} max={300} value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></div>
         <div><Label htmlFor="m">Mode</Label>
           <Select id="m" value={mode} onChange={(e) => setMode(e.target.value)}>
             <option value="ASSESSMENT">Assessment (no hints, results after)</option><option value="PRACTICE">Practice (timed, hints allowed)</option>
@@ -181,35 +180,35 @@ function CustomBuilder({ onCreated }: { onCreated: () => void }) {
           <Select id="pc" value={partial ? "partial" : "all"} onChange={(e) => setPartial(e.target.value === "partial")}>
             <option value="partial">Partial credit per test</option><option value="all">All-or-nothing</option>
           </Select></div>
-        <div><Label htmlFor="pen">Penalty per rejected attempt (%)</Label><Input id="pen" type="number" min={0} max={50} value={penalty} onChange={(e) => setPenalty(Number(e.target.value))} /></div>
+        <div><Label htmlFor="pen" hint="% per rejected attempt">Penalty</Label><Input id="pen" type="number" min={0} max={50} value={penalty} onChange={(e) => setPenalty(Number(e.target.value))} /></div>
         <fieldset className="sm:col-span-2">
-          <legend className="mb-1 text-xs font-medium text-muted">Languages</legend>
-          <div className="flex gap-4 text-sm">
+          <legend className="mb-1.5 text-[13px] font-medium text-fg">Languages</legend>
+          <div className="flex gap-5 text-sm text-fg">
             {(["python", "cpp", "java"] as Language[]).map((l) => (
-              <label key={l} className="flex items-center gap-1.5">
+              <label key={l} className="flex items-center gap-2">
                 <input type="checkbox" checked={langs.includes(l)} onChange={(e) => setLangs(e.target.checked ? [...langs, l] : langs.filter((x) => x !== l))} />{LANGUAGE_LABEL[l]}
               </label>
             ))}
           </div>
         </fieldset>
       </div>
-      <p className="mb-1 mt-4 text-xs font-medium text-muted">Chosen problems</p>
-      <div className="max-h-56 overflow-auto rounded-xl border border-line bg-bg/40">
+      <p className="mb-1.5 mt-5 text-[13px] font-medium text-fg">Chosen problems</p>
+      <div className="max-h-56 overflow-auto rounded-md border border-line">
         {!problems.data ? <div className="p-3"><Spinner /></div> : problems.data.items.map((p) => (
-          <label key={p.id} className="flex items-center gap-2 border-b border-line px-3 py-1.5 text-sm last:border-0">
+          <label key={p.id} className="flex min-h-10 items-center gap-2.5 border-b border-line px-3 py-1.5 text-[13px] last:border-0 hover:bg-panel-2/50">
             <input type="checkbox" checked={p.id in picked} onChange={(e) => {
               const next = { ...picked };
               if (e.target.checked) next[p.id] = 100; else delete next[p.id];
               setPicked(next);
             }} />
-            <span className="flex-1 truncate">{p.title}</span>
-            <span className={`text-xs ${difficultyTone(p.difficulty)}`}>{p.difficulty?.toLowerCase()}</span>
+            <span className="flex-1 truncate text-fg">{p.title}</span>
+            <Badge tone={difficultyTone(p.difficulty)}>{p.difficulty?.toLowerCase()}</Badge>
             {p.id in picked && <Input aria-label={`Points for ${p.title}`} type="number" min={1} max={1000} value={picked[p.id]} className="h-7 w-20 text-xs"
               onChange={(e) => setPicked({ ...picked, [p.id]: Number(e.target.value) })} />}
           </label>
         ))}
       </div>
-      <p className="mb-1 mt-4 text-xs font-medium text-muted">Plus random problems</p>
+      <p className="mb-1.5 mt-5 text-[13px] font-medium text-fg">Plus random problems</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Input aria-label="Random count" type="number" min={0} max={6} value={random.count} onChange={(e) => setRandom({ ...random, count: Number(e.target.value) })} />
         <Select aria-label="Random difficulty" value={random.difficulty} onChange={(e) => setRandom({ ...random, difficulty: e.target.value as Difficulty | "" })}>
@@ -221,7 +220,7 @@ function CustomBuilder({ onCreated }: { onCreated: () => void }) {
         </Select>
         <Input aria-label="Points each" type="number" min={1} max={1000} value={random.points} onChange={(e) => setRandom({ ...random, points: Number(e.target.value) })} />
       </div>
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-5 flex items-center gap-3 border-t border-line pt-4">
         <Button variant="primary" size="sm" onClick={create} disabled={langs.length === 0 || (Object.keys(picked).length === 0 && random.count === 0)}>Create assessment</Button>
         {msg && <span className="text-xs text-muted">{msg}</span>}
       </div>

@@ -13,6 +13,7 @@
   <img alt="Practice workspace with Forge Coach" src="docs/screenshots/forge-coach.png" width="49%">
   <img alt="Learning Map" src="docs/screenshots/learning-map.png" width="49%">
 </p>
+<p align="center"><img alt="Practice workspace in the dark theme" src="docs/screenshots/workspace-dark.png" width="98%"></p>
 
 AlgoForge is a platform for competitive programming practice and coding-assessment preparation. It has six parts:
 
@@ -211,18 +212,26 @@ Create `backend/src/main/resources/seed/problems/<slug>/` with:
 
 Copy an existing problem as a template, and cross-check `ref.py` against a brute force before trusting it. Seeds are inserted only when the slug is missing, so editing an existing problem needs a migration.
 
-## Brand
+## Design system
 
-The mark is an "A" drawn as a small graph: three nodes joined by edges, lit by the forge's ember gradient, with a spark for the idea that clicks. It is used for the favicon, the sidebar, the sign-in page and Forge Coach's avatar.
+The interface follows one written standard, so every screen looks like part of the same product:
+
+- **Tokens, not colours.** Surfaces (`bg`, `panel`, `panel-2`, `panel-3`), borders (`line`, `line-strong`), text (`fg`, `muted`, `faint`), one accent and five status colours are CSS variables in `frontend/src/app/globals.css`. Light and dark themes share the names; every text token meets WCAG AA (4.5:1) on every surface in both.
+- **Light and dark.** The theme follows the system by default and can be pinned to light or dark from the sidebar or Settings. An inline script applies it before the first paint, so pages never flash the wrong theme.
+- **One accent, used sparingly.** Forge orange marks focus, the active page, links and progress. Primary buttons are neutral (near-black in light, near-white in dark). The only gradient is the logo mark.
+- **Type and spacing.** Geist for text, Geist Mono for code and figures; a fixed scale (12, 13, 14, 16, 20, 24 px) on a 4 px spacing grid. Controls use a 6 px radius, cards 8 px, with hairline borders instead of shadows and glows.
+- **Shared components.** `frontend/src/components/ui.tsx` holds the building blocks every page uses: `Page`, `PageHeader`, `Card`, `Button`, `Badge` (with semantic tones), `Segmented`, `TabBar`, `StatStrip`, form fields and empty, loading and error states.
+
+### Brand
+
+The mark is an "A" drawn as a small graph: three nodes joined by edges, with a spark for the idea that clicks. It is used for the favicon, the sidebar, the sign-in page and Forge Coach's avatar.
 
 | Asset | Use |
 |---|---|
 | `frontend/public/brand/algoforge-mark.svg` | The square mark (also `frontend/src/app/icon.svg`, the favicon) |
 | `frontend/public/brand/algoforge-logo.svg` | Mark and wordmark for dark backgrounds |
 | `frontend/public/brand/algoforge-logo-light.svg` | Mark and wordmark for light backgrounds |
-| `frontend/src/components/Logo.tsx` | `LogoMark`, `Wordmark` and `Logo` React components |
-
-Ember gradient `#ffc35a → #ff7a2f → #ff4d6d` on near-black `#07080c`. Display type is Space Grotesk; body and code use Geist and Geist Mono. The design tokens live in `frontend/src/app/globals.css`.
+| `frontend/src/components/Logo.tsx` | `LogoMark` and `Logo` React components |
 
 ## API documentation
 

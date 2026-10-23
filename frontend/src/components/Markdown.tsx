@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 export function Markdown({ children }: { children?: string }) {
   if (!children) return null;
   return (
-    <div className="prose-af text-[14px] text-fg/90">
+    <div className="prose-af">
       <ReactMarkdown>{children}</ReactMarkdown>
     </div>
   );

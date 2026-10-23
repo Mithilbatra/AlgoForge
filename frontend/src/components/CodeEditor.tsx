@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
+import { useTheme } from "@/lib/theme";
 import type { Language } from "@/lib/types";
 import { Spinner } from "./ui";
 
@@ -14,10 +15,11 @@ export interface EditorCommands {
   submit: () => void;
 }
 
-/** Monaco with the AlgoForge theme. Ctrl/Cmd+Enter runs the samples, Ctrl/Cmd+Shift+Enter submits. */
+/** Monaco themed to the panel colours of the current theme. Ctrl/Cmd+Enter runs the samples, Ctrl/Cmd+Shift+Enter submits. */
 export function CodeEditor({ language, value, onChange, commands, readOnly = false }: {
   language: Language; value: string; onChange?: (v: string) => void; commands?: EditorCommands; readOnly?: boolean;
 }) {
+  const { resolved } = useTheme();
   const latest = useRef(commands);
   useEffect(() => {
     latest.current = commands;
@@ -27,14 +29,16 @@ export function CodeEditor({ language, value, onChange, commands, readOnly = fal
       height="100%"
       language={MONACO_LANG[language]}
       value={value}
-      theme="algoforge"
+      theme={resolved === "dark" ? "af-dark" : "af-light"}
       onChange={(v) => onChange?.(v ?? "")}
       beforeMount={(monaco) => {
-        monaco.editor.defineTheme("algoforge", {
-          base: "vs-dark",
-          inherit: true,
-          rules: [],
-          colors: { "editor.background": "#0f1217", "editorLineNumber.foreground": "#4b5262", "editor.lineHighlightBackground": "#161a22" },
+        monaco.editor.defineTheme("af-light", {
+          base: "vs", inherit: true, rules: [],
+          colors: { "editor.background": "#ffffff", "editor.lineHighlightBackground": "#f4f4f5", "editorLineNumber.foreground": "#a1a1aa", "editorLineNumber.activeForeground": "#52525b", "editorIndentGuide.background1": "#ececee" },
+        });
+        monaco.editor.defineTheme("af-dark", {
+          base: "vs-dark", inherit: true, rules: [],
+          colors: { "editor.background": "#111113", "editor.lineHighlightBackground": "#18181b", "editorLineNumber.foreground": "#52525b", "editorLineNumber.activeForeground": "#a1a1aa", "editorIndentGuide.background1": "#232327" },
         });
       }}
       onMount={(editor, monaco) => {
@@ -45,12 +49,14 @@ export function CodeEditor({ language, value, onChange, commands, readOnly = fal
         readOnly,
         minimap: { enabled: false },
         fontSize: 13,
+        lineHeight: 20,
         fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
         tabSize: 4,
         scrollBeyondLastLine: false,
         automaticLayout: true,
         renderLineHighlight: "line",
-        padding: { top: 10 },
+        padding: { top: 12 },
+        scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
         accessibilitySupport: "auto",
       }}
     />

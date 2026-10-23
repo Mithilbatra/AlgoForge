@@ -3,17 +3,17 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { BookOpen, Bot, Check, Copy, Cpu, ExternalLink, EyeOff, Gauge, History as HistoryIcon, Lightbulb, Play, Send, StickyNote, Timer, TerminalSquare, Waypoints, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookOpen, Bot, Check, Copy, ExternalLink, EyeOff, History as HistoryIcon, Lightbulb, Play, StickyNote, TerminalSquare } from "lucide-react";
 import { errorMessage, get, poll, post, put } from "@/lib/api";
 import { draftKey, loadDraft, saveDraft, TEMPLATES } from "@/lib/drafts";
-import { difficultyPill, LANGUAGE_LABEL, relativeTime, STATUS_LABEL } from "@/lib/format";
+import { difficultyTone, LANGUAGE_LABEL, relativeTime, STATUS_LABEL } from "@/lib/format";
 import type { Job, Language, ProblemDetail, RunResult, SubmissionDetail, SubmissionSummary } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 import { Coach } from "./Coach";
 import { CodeEditor } from "./CodeEditor";
 import { Markdown } from "./Markdown";
 import { RunView, SubmissionView } from "./Results";
-import { Badge, Button, cx, ErrorNote, Input, Kbd, Select, Spinner, Textarea, Verdict } from "./ui";
+import { Badge, Button, cx, ErrorNote, Input, Kbd, Select, Spinner, TabBar, Textarea, Verdict } from "./ui";
 
 const NARROW = "(max-width: 767px)";
 function useNarrow() {
@@ -25,6 +25,7 @@ function useNarrow() {
 }
 
 type Output = { kind: "run"; job: Job<RunResult> } | { kind: "submission"; s: SubmissionDetail } | { kind: "error"; message: string };
+type LeftTab = "problem" | "coach" | "submissions" | "hints" | "notes";
 
 const MAX_CODE = 65536;
 
@@ -49,7 +50,7 @@ export function Workspace({ problemId, mode, sessionId, languages = ["python", "
   const [busy, setBusy] = useState<"run" | "submit" | null>(null);
   const [output, setOutput] = useState<Output>();
   const [consoleTab, setConsoleTab] = useState<"result" | "input">("result");
-  const [leftTab, setLeftTab] = useState<"problem" | "coach" | "submissions" | "hints" | "notes">("problem");
+  const [leftTab, setLeftTab] = useState<LeftTab>("problem");
   const [deepBusy, setDeepBusy] = useState(false);
   const [transfer, setTransfer] = useState<{ problemId: number; title: string; reason: string } | null>(null);
   const [historyTick, setHistoryTick] = useState(0);
@@ -135,10 +136,10 @@ export function Workspace({ problemId, mode, sessionId, languages = ["python", "
   if (!p) return <div className="p-6"><Spinner /></div>;
 
   const canJudge = p.judgeable;
-  const tabs: { id: typeof leftTab; label: string; icon: LucideIcon }[] = [
-    { id: "problem", label: "Problem", icon: BookOpen },
-    ...(practice ? [{ id: "coach" as const, label: "Coach", icon: Bot }] : []),
-    { id: "submissions", label: "Submissions", icon: HistoryIcon },
+  const tabs = [
+    { id: "problem" as const, label: "Problem", icon: BookOpen },
+    ...(practice ? [{ id: "coach" as const, label: "Coach", icon: Bot, dot: true }] : []),
+    { id: "submissions" as const, label: "Submissions", icon: HistoryIcon },
     ...(practice && p.hints && p.hints.length > 0 ? [{ id: "hints" as const, label: "Hints", icon: Lightbulb }] : []),
     ...(practice ? [{ id: "notes" as const, label: "Notes", icon: StickyNote }] : []),
   ];
@@ -147,22 +148,9 @@ export function Workspace({ problemId, mode, sessionId, languages = ["python", "
   return (
     // Side by side on desktop; stacked (statement above editor) on phones.
     <Group key={narrow ? "v" : "h"} orientation={narrow ? "vertical" : "horizontal"} className="h-full">
-      <Panel defaultSize="42" minSize="20" className="flex min-h-0 min-w-0 flex-col bg-panel/80">
-        <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-line px-3 pt-2.5" role="tablist">
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            const on = leftTab === t.id;
-            return (
-              <button key={t.id} role="tab" aria-selected={on} onClick={() => setLeftTab(t.id)}
-                className={cx("relative flex items-center gap-1.5 whitespace-nowrap px-3 pb-2.5 pt-1.5 text-sm transition-colors", on ? "text-fg" : "text-muted hover:text-fg")}>
-                <Icon className={cx("h-4 w-4", on ? "text-accent" : "text-faint")} aria-hidden />{t.label}
-                {t.id === "coach" && !on && <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_8px_rgb(255_122_47)]" aria-hidden />}
-                {on && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full ember-fill" aria-hidden />}
-              </button>
-            );
-          })}
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto px-6 py-5">
+      <Panel defaultSize="42" minSize="20" className="flex min-h-0 min-w-0 flex-col bg-panel">
+        <TabBar tabs={tabs} value={leftTab} onChange={setLeftTab} />
+        <div className="min-h-0 flex-1 overflow-auto px-6 py-6">
           {leftTab === "problem" && <Statement p={p} />}
           {practice && (
             <div hidden={leftTab !== "coach"} className="h-full">
@@ -180,31 +168,31 @@ export function Workspace({ problemId, mode, sessionId, languages = ["python", "
           {leftTab === "notes" && <Notes p={p} onSaved={reload} />}
         </div>
       </Panel>
-      <Separator className={narrow ? "h-1" : "w-1"} />
+      <Separator className={narrow ? "h-px" : "w-px"} />
       <Panel defaultSize="58" minSize="30" className="min-h-0 min-w-0">
         <Group orientation="vertical" className="h-full">
-          <Panel defaultSize="62" minSize="25" className="flex min-h-0 flex-col">
-            <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-panel/80 px-3 py-2">
+          <Panel defaultSize="62" minSize="25" className="flex min-h-0 flex-col bg-panel">
+            <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line px-3">
               <label className="sr-only" htmlFor="lang">Language</label>
-              <Select id="lang" value={language} onChange={(e) => setLanguage(e.target.value as Language)} className="h-8 w-32 text-xs font-medium">
+              <Select id="lang" value={language} onChange={(e) => setLanguage(e.target.value as Language)} className="h-8 w-32 text-[13px]">
                 {languages.map((l) => <option key={l} value={l}>{LANGUAGE_LABEL[l]}</option>)}
               </Select>
               {practice && canJudge && (
-                <Input aria-label="Your complexity estimate" placeholder="Your O(…) guess" value={stated}
-                  onChange={(e) => setStated(e.target.value)} maxLength={40} className="h-8 w-36 font-mono text-xs"
+                <Input aria-label="Your complexity estimate" placeholder="e.g. O(n log n)" value={stated}
+                  onChange={(e) => setStated(e.target.value)} maxLength={40} className="hidden h-8 w-36 font-mono text-xs sm:block"
                   title="Optional. Compared with the measured complexity as evidence of complexity reasoning." />
               )}
               <div className="ml-auto flex items-center gap-2">
                 {codeTooLong && <span className="text-xs text-bad">Code exceeds 64 KB</span>}
                 {p.samples.length > 0 && (
                   <Button size="sm" onClick={() => run(true)} disabled={!!busy || disabled} title="Run the visible samples (Ctrl/Cmd+Enter)">
-                    <Play className="h-3.5 w-3.5 text-ok" aria-hidden />{busy === "run" ? "Running…" : "Run samples"} <span className="hidden 2xl:inline"><Kbd>⌘↵</Kbd></span>
+                    <Play aria-hidden />{busy === "run" ? "Running…" : "Run samples"}<span className="hidden xl:inline"><Kbd>⌘↵</Kbd></span>
                   </Button>
                 )}
-                <Button size="sm" onClick={() => run(false)} disabled={!!busy || disabled}><TerminalSquare className="h-3.5 w-3.5 text-info" aria-hidden />Run custom</Button>
+                <Button size="sm" onClick={() => run(false)} disabled={!!busy || disabled}><TerminalSquare aria-hidden />Run custom</Button>
                 {canJudge && (
-                  <Button size="sm" variant="primary" onClick={submit} disabled={!!busy || disabled} title="Submit for judging (Ctrl/Cmd+Shift+Enter)" className="px-4">
-                    <Send className="h-3.5 w-3.5" aria-hidden />{busy === "submit" ? "Judging…" : "Submit"}
+                  <Button size="sm" variant="primary" onClick={submit} disabled={!!busy || disabled} title="Submit for judging (Ctrl/Cmd+Shift+Enter)" className="px-3.5">
+                    {busy === "submit" ? "Judging…" : "Submit"}
                   </Button>
                 )}
               </div>
@@ -214,26 +202,18 @@ export function Workspace({ problemId, mode, sessionId, languages = ["python", "
                 commands={{ run: () => (p.samples.length > 0 ? run(true) : run(false)), submit: () => canJudge && submit() }} />
             </div>
           </Panel>
-          <Separator className="h-1" />
+          <Separator className="h-px" />
           <Panel defaultSize="38" minSize="12" className="flex min-h-0 flex-col bg-panel">
-            <div className="flex shrink-0 items-center gap-1 border-b border-line px-3 pt-1.5" role="tablist">
-              {(["result", "input"] as const).map((t) => (
-                <button key={t} role="tab" aria-selected={consoleTab === t} onClick={() => setConsoleTab(t)}
-                  className={cx("relative px-3 pb-2 pt-1 text-xs font-medium", consoleTab === t ? "text-fg" : "text-muted hover:text-fg")}>
-                  {t === "result" ? "Result" : "Custom input"}
-                  {consoleTab === t && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full ember-fill" aria-hidden />}
-                </button>
-              ))}
-              {busy && <span className="ml-auto flex items-center gap-1.5 pb-1.5 text-[11px] text-info"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-info" aria-hidden />{busy === "run" ? "Running" : "Judging"}</span>}
-            </div>
+            <TabBar size="sm" value={consoleTab} onChange={setConsoleTab}
+              tabs={[{ id: "result", label: "Result" }, { id: "input", label: "Custom input" }]}
+              trailing={busy && <span className="flex items-center gap-1.5 text-xs text-muted"><span className="size-1.5 animate-pulse rounded-full bg-info" aria-hidden />{busy === "run" ? "Running" : "Judging"}</span>} />
             <div className="min-h-0 flex-1 overflow-auto p-4">
               {consoleTab === "input" ? (
                 <Textarea aria-label="Custom input" className="h-full min-h-28 resize-none" placeholder="Input passed to your program on stdin"
                   value={customInput} onChange={(e) => setCustomInput(e.target.value)} />
               ) : !output ? (
-                <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-                  <Cpu className="h-6 w-6 text-faint" aria-hidden />
-                  <p className="max-w-sm text-sm text-faint">Run the samples, try custom input, or submit. Every result comes from compiling and running your code in an isolated sandbox.</p>
+                <div className="grid h-full place-items-center text-center">
+                  <p className="max-w-xs text-[13px] text-faint">Run the samples, try custom input, or submit. Every result comes from compiling and running your code in an isolated sandbox.</p>
                 </div>
               ) : output.kind === "error" ? (
                 <ErrorNote message={output.message} />
@@ -243,13 +223,10 @@ export function Workspace({ problemId, mode, sessionId, languages = ["python", "
                 <div className="space-y-3">
                   <SubmissionView s={output.s} practice={practice} deepBusy={deepBusy} onDeepEvaluate={() => deepEvaluate(output.s.id)} />
                   {transfer && (
-                    <div className="ember-border flex gap-3 rounded-2xl p-4 text-sm animate-fade-up">
-                      <Waypoints className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden />
-                      <div>
-                        <p className="font-display font-semibold text-accent">Next: transfer test</p>
-                        <p className="mt-1 text-muted">{transfer.reason}</p>
-                        <Link className="mt-2 inline-block font-medium text-accent hover:underline" href={`/problems/${transfer.problemId}`}>Open “{transfer.title}” →</Link>
-                      </div>
+                    <div className="rounded-lg border border-accent/25 bg-accent/5 p-4 text-sm">
+                      <p className="font-medium text-fg">Next: transfer test</p>
+                      <p className="mt-1 text-[13px] text-muted">{transfer.reason}</p>
+                      <Link className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline" href={`/problems/${transfer.problemId}`}>Open “{transfer.title}”<ArrowRight className="size-3.5" aria-hidden /></Link>
                     </div>
                   )}
                 </div>
@@ -264,45 +241,46 @@ export function Workspace({ problemId, mode, sessionId, languages = ["python", "
 
 function Statement({ p }: { p: ProblemDetail }) {
   return (
-    <article className="animate-fade-up">
-      <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-faint">{p.sourceName}{p.externalId ? ` · ${p.externalId}` : ""}</p>
-      <h1 className="mt-1 text-2xl font-bold tracking-tight">{p.title}</h1>
+    <article>
+      <p className="text-xs text-faint">{p.source === "ORIGINAL" ? "AlgoForge original" : p.sourceName}{p.externalId ? ` · ${p.externalId}` : ""}</p>
+      <h1 className="mt-1 text-xl font-semibold tracking-tight text-fg">{p.title}</h1>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        {p.difficulty && <Badge className={difficultyPill(p.difficulty)}>{p.difficulty.toLowerCase()}</Badge>}
-        {p.sourceRating && <Badge className="border-gold/30 bg-gold/10 text-gold">rating {p.sourceRating}</Badge>}
+        {p.difficulty && <Badge tone={difficultyTone(p.difficulty)}>{p.difficulty.toLowerCase()}</Badge>}
+        {p.sourceRating && <Badge>rating {p.sourceRating}</Badge>}
         {/* Synced and linked problems store no limits of their own, only the database defaults. */}
         {p.judgeable && <>
-          <Badge><Timer className="h-3 w-3" aria-hidden />{p.timeLimitMs / 1000} s</Badge>
-          <Badge><Gauge className="h-3 w-3" aria-hidden />{p.memoryLimitMb} MB</Badge>
+          <Badge>{p.timeLimitMs / 1000} s</Badge>
+          <Badge>{p.memoryLimitMb} MB</Badge>
         </>}
         {p.tags.map((t) => <Badge key={t}>{t}</Badge>)}
-        {p.tagsHidden && !p.assessmentLocked && <Badge className="border-violet/30 bg-violet/[0.07] text-violet" title="This problem tests whether you recognise the technique without being told."><EyeOff className="h-3 w-3" aria-hidden />topic hidden until solved</Badge>}
-        {p.assessmentLocked && <Badge className="border-warn/40 bg-warn/10 text-warn">assessment: hints and topics hidden</Badge>}
+        {p.tagsHidden && !p.assessmentLocked && <Badge tone="violet" title="This problem tests whether you recognise the technique without being told."><EyeOff aria-hidden />topic hidden until solved</Badge>}
+        {p.assessmentLocked && <Badge tone="warn">assessment: hints and topics hidden</Badge>}
       </div>
-      {p.statementMd ? <div className="mt-5"><Markdown>{p.statementMd}</Markdown></div> : (
-        <div className="mt-5 space-y-3 rounded-2xl border border-line bg-panel-2/50 p-5 text-sm">
-          <p>The statement for this problem lives on {p.sourceName}; AlgoForge stores only the link, metadata and your notes.</p>
-          {p.canonicalUrl && <a className="inline-flex items-center gap-1 font-medium text-accent hover:underline" href={p.canonicalUrl} target="_blank" rel="noopener noreferrer">Open on {p.sourceName}<ExternalLink className="h-3.5 w-3.5" aria-hidden /></a>}
+      {p.statementMd ? <div className="mt-6"><Markdown>{p.statementMd}</Markdown></div> : (
+        <div className="mt-6 space-y-3 rounded-lg border border-line bg-panel-2/50 p-4 text-sm">
+          <p className="text-fg">The statement for this problem lives on {p.sourceName}; AlgoForge stores only the link, metadata and your notes.</p>
+          {p.canonicalUrl && <a className="inline-flex items-center gap-1 font-medium text-accent hover:underline" href={p.canonicalUrl} target="_blank" rel="noopener noreferrer">Open on {p.sourceName}<ExternalLink className="size-3.5" aria-hidden /></a>}
           <p className="text-muted">{p.capabilities.notes}</p>
           <p className="text-muted">You can still run code here against your own input, and Forge Coach can help. Submit on {p.sourceName} for an official verdict, then record the outcome under Notes.</p>
         </div>
       )}
       {p.constraintsMd && (
-        <div className="mt-6 rounded-xl border border-line bg-bg/50 px-4 py-3">
-          <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-gold">Constraints</p>
-          <p className="mt-1.5 font-mono text-[13px] leading-relaxed text-fg/90">{p.constraintsMd}</p>
+        <div className="mt-6">
+          <h3 className="text-sm font-semibold text-fg">Constraints</h3>
+          <p className="mt-2 rounded-md border border-line bg-panel-2/50 px-3 py-2 font-mono text-[13px] leading-relaxed text-fg">{p.constraintsMd}</p>
         </div>
       )}
+      {p.samples.length > 0 && <h3 className="mt-6 text-sm font-semibold text-fg">Examples</h3>}
       {p.samples.map((s, i) => (
-        <div key={i} className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div key={i} className="mt-3 grid gap-3 sm:grid-cols-2">
           <SampleBox label={`Sample input ${i + 1}`} text={s.input} />
           <SampleBox label={`Sample output ${i + 1}`} text={s.output} />
         </div>
       ))}
-      {p.concepts.length > 0 && (
-        <p className="mt-6 text-xs text-faint">Concepts: {p.concepts.map((c) => `${c.name}${c.tier > 1 ? ` (tier ${c.tier})` : ""}`).join(", ")}</p>
-      )}
-      {p.judgeable && <p className="mt-2 text-xs text-faint">Judged on {p.samples.length} samples + {p.officialTests} hidden tests.</p>}
+      <div className="mt-8 space-y-1 border-t border-line pt-4 text-xs text-faint">
+        {p.concepts.length > 0 && <p>Concepts: {p.concepts.map((c) => `${c.name}${c.tier > 1 ? ` (tier ${c.tier})` : ""}`).join(", ")}</p>}
+        {p.judgeable && <p>Judged on {p.samples.length} samples and {p.officialTests} hidden tests.</p>}
+      </div>
     </article>
   );
 }
@@ -310,15 +288,15 @@ function Statement({ p }: { p: ProblemDetail }) {
 function SampleBox({ label, text }: { label: string; text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="min-w-0">
-      <div className="mb-1 flex items-center justify-between text-[11px] font-medium uppercase tracking-wider text-faint">
+    <div className="min-w-0 overflow-hidden rounded-md border border-line">
+      <div className="flex h-8 items-center justify-between border-b border-line bg-panel-2/60 px-3 text-xs text-muted">
         {label}
-        <button className="flex items-center gap-1 normal-case text-muted transition-colors hover:text-fg" aria-label={`Copy ${label.toLowerCase()}`}
+        <button className="flex items-center gap-1 transition-colors hover:text-fg" aria-label={`Copy ${label.toLowerCase()}`}
           onClick={() => { navigator.clipboard?.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1200); }}>
-          {copied ? <Check className="h-3 w-3 text-ok" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}{copied ? "copied" : "copy"}
+          {copied ? <Check className="size-3 text-ok" aria-hidden /> : <Copy className="size-3" aria-hidden />}{copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <pre className="overflow-x-auto rounded-lg border border-line bg-bg/80 p-2.5 font-mono text-xs leading-relaxed">{text}</pre>
+      <pre className="overflow-x-auto bg-panel px-3 py-2.5 font-mono text-[13px] leading-relaxed text-fg">{text}</pre>
     </div>
   );
 }
@@ -337,16 +315,16 @@ function History({ problemId, sessionId, tick, onOpen, onRestore }: {
     (restore ? onRestore : onOpen)(s);
   };
   return (
-    <ul className="divide-y divide-line/70">
+    <ul className="-mx-2 divide-y divide-line">
       {rows.map((s) => (
-        <li key={s.id} className="flex items-center gap-3 py-2.5 text-sm">
+        <li key={s.id} className="flex items-center gap-3 px-2 py-2.5 text-[13px]">
           <Verdict status={s.status} />
-          <span className="text-xs text-muted">{LANGUAGE_LABEL[s.language]}</span>
-          {s.total != null && <span className="text-xs text-muted">{s.passed}/{s.total}</span>}
+          <span className="text-muted">{LANGUAGE_LABEL[s.language]}</span>
+          {s.total != null && <span className="font-mono text-xs text-muted">{s.passed}/{s.total}</span>}
           <span className="text-xs text-faint">{relativeTime(s.createdAt)}{s.oaSessionId && !sessionId ? " · assessment" : ""}</span>
-          <span className="ml-auto flex gap-2">
-            <button className="text-xs text-accent hover:underline" onClick={() => open(s.id, false)}>View</button>
-            <button className="text-xs text-muted hover:text-fg" onClick={() => open(s.id, true)}>Load code</button>
+          <span className="ml-auto flex gap-1">
+            <Button size="sm" variant="ghost" onClick={() => open(s.id, false)}>View</Button>
+            <Button size="sm" variant="ghost" onClick={() => open(s.id, true)}>Load code</Button>
           </span>
         </li>
       ))}
@@ -362,23 +340,23 @@ function Hints({ hints, problemId, editorial }: { hints: string[]; problemId: nu
     <div className="space-y-3 text-sm">
       <p className="text-muted">Reveal hints one at a time; each nudges a bit further.</p>
       {hints.slice(0, shown).map((h, i) => (
-        <div key={i} className="rounded-xl border border-line bg-panel-2/60 p-3.5 animate-fade-up"><span className="mr-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-accent">Hint {i + 1}</span>{h}</div>
+        <div key={i} className="rounded-md border border-line bg-panel-2/50 p-3.5 text-fg"><p className="mb-1 text-xs font-medium text-faint">Hint {i + 1}</p>{h}</div>
       ))}
-      {shown < hints.length && <Button size="sm" onClick={() => setShown(shown + 1)}><Lightbulb className="h-3.5 w-3.5 text-gold" aria-hidden />Show hint {shown + 1} of {hints.length}</Button>}
+      {shown < hints.length && <Button size="sm" onClick={() => setShown(shown + 1)}><Lightbulb aria-hidden />Show hint {shown + 1} of {hints.length}</Button>}
       {editorial && !solution && (
-        <div className="border-t border-line pt-3">
+        <div className="border-t border-line pt-4">
           <p className="text-xs text-faint">Viewing the solution is recorded, and a later accepted submission then counts as weaker evidence of mastery.</p>
-          <Button size="sm" variant="ghost" className="mt-2" onClick={() => get<typeof solution>(`/api/problems/${problemId}/editorial`).then(setSolution).catch((e) => setErr(errorMessage(e)))}>
+          <Button size="sm" variant="ghost" className="mt-2 -ml-2.5" onClick={() => get<typeof solution>(`/api/problems/${problemId}/editorial`).then(setSolution).catch((e) => setErr(errorMessage(e)))}>
             Reveal editorial and reference solution
           </Button>
         </div>
       )}
       {err && <ErrorNote message={err} />}
       {solution && (
-        <div className="space-y-3 border-t border-line pt-3">
+        <div className="space-y-3 border-t border-line pt-4">
           <Markdown>{solution.editorialMd}</Markdown>
           <p className="text-xs text-faint">Reference solution ({solution.referenceLanguage})</p>
-          <pre className="overflow-x-auto rounded-xl border border-line bg-bg/80 p-3 font-mono text-xs">{solution.referenceSolution}</pre>
+          <pre className="overflow-x-auto rounded-md border border-line bg-panel-2/50 p-3 font-mono text-xs leading-relaxed">{solution.referenceSolution}</pre>
         </div>
       )}
     </div>
@@ -400,25 +378,25 @@ function Notes({ p, onSaved }: { p: ProblemDetail; onSaved: () => void }) {
     }
   }
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-5 text-sm">
       <div>
-        <label className="mb-1 block text-xs text-muted" htmlFor="st">Status</label>
+        <label className="mb-1.5 block text-[13px] font-medium text-fg" htmlFor="st">Status</label>
         <Select id="st" value={status} onChange={(e) => setStatus(e.target.value)}>
           {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </Select>
-        {p.judgeable && <p className="mt-1 text-xs text-faint">Judged problems update this automatically; only judged results count as learning evidence.</p>}
+        {p.judgeable && <p className="mt-1.5 text-xs text-faint">Judged problems update this automatically; only judged results count as learning evidence.</p>}
       </div>
       <div>
-        <span className="mb-1 block text-xs text-muted">Personal difficulty</span>
+        <span className="mb-1.5 block text-[13px] font-medium text-fg">Personal difficulty</span>
         <div className="flex gap-1" role="radiogroup" aria-label="Personal difficulty">
           {[1, 2, 3, 4, 5].map((n) => (
             <button key={n} role="radio" aria-checked={pd === n} onClick={() => setPd(pd === n ? 0 : n)}
-              className={cx("h-9 w-9 rounded-lg border text-xs font-semibold transition-colors", pd >= n ? "border-accent bg-accent/15 text-accent" : "border-line-strong text-muted hover:border-faint")}>{n}</button>
+              className={cx("size-9 rounded-md border text-[13px] font-medium transition-colors", pd >= n ? "border-fg bg-fg text-bg" : "border-line-strong text-muted hover:bg-panel-2")}>{n}</button>
           ))}
         </div>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-muted" htmlFor="nt">Notes</label>
+        <label className="mb-1.5 block text-[13px] font-medium text-fg" htmlFor="nt">Notes</label>
         <Textarea id="nt" rows={8} value={notes} maxLength={5000} onChange={(e) => setNotes(e.target.value)} placeholder="Key insight, mistakes to avoid, edge cases…" />
       </div>
       <div className="flex items-center gap-3"><Button size="sm" variant="primary" onClick={save}>Save notes</Button>{msg && <span className="text-xs text-muted">{msg}</span>}</div>

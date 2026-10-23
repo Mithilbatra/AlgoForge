@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Network, X } from "lucide-react";
-import { Badge, Card, cx, ErrorNote, Meter, PageHeader, Skeleton } from "@/components/ui";
+import { X } from "lucide-react";
+import { Badge, Card, cx, ErrorNote, Meter, Page, PageHeader, Skeleton, type Tone } from "@/components/ui";
 import { MASTERY_LABEL, masteryTone, relativeTime } from "@/lib/format";
 import type { ConceptMastery } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
@@ -18,14 +18,14 @@ const DIMENSION_INFO: Record<string, string> = {
   EXPLANATION: "Not measured yet: AlgoForge has no graded explanation exercise, so this stays empty.",
 };
 
-const STATUS_STYLE: Record<string, { ring: string; dot: string; edge: string }> = {
-  STRONG: { ring: "border-ok/50 shadow-[0_0_24px_-6px_rgb(52_211_153/0.55)]", dot: "bg-ok", edge: "#34d399" },
-  DEVELOPING: { ring: "border-info/45 shadow-[0_0_24px_-8px_rgb(96_165_250/0.5)]", dot: "bg-info", edge: "#60a5fa" },
-  WEAK: { ring: "border-bad/50 shadow-[0_0_24px_-6px_rgb(251_113_133/0.5)]", dot: "bg-bad", edge: "#fb7185" },
-  INSUFFICIENT_EVIDENCE: { ring: "border-line-strong", dot: "bg-line-strong", edge: "#2b3341" },
+const STATUS: Record<string, { dot: string; bar: string; tone: Tone }> = {
+  STRONG: { dot: "bg-ok", bar: "bg-ok", tone: "ok" },
+  DEVELOPING: { dot: "bg-info", bar: "bg-info", tone: "info" },
+  WEAK: { dot: "bg-bad", bar: "bg-bad", tone: "bad" },
+  INSUFFICIENT_EVIDENCE: { dot: "bg-line-strong", bar: "bg-line-strong", tone: "neutral" },
 };
 
-const NODE_W = 176, NODE_H = 88, COL_GAP = 52, ROW_GAP = 14;
+const NODE_W = 184, NODE_H = 84, COL_GAP = 56, ROW_GAP = 12;
 
 export default function LearningMap() {
   useTitle("Learning Map");
@@ -57,32 +57,29 @@ export default function LearningMap() {
     return { cols, pos, byCode, width: cols.length * (NODE_W + COL_GAP) - COL_GAP, height };
   }, [data]);
 
-  if (error) return <div className="p-6"><ErrorNote message={error} onRetry={reload} /></div>;
-  if (!data || !layout) return <div className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-8"><Skeleton className="h-16 w-96" /><Skeleton className="h-[560px] rounded-2xl" /></div>;
+  if (error) return <Page><ErrorNote message={error} onRetry={reload} /></Page>;
+  if (!data || !layout) return <Page width="max-w-7xl"><Skeleton className="mb-8 h-12 w-96" /><Skeleton className="h-[560px]" /></Page>;
   const sel = data.find((c) => c.code === selected);
   const focus = hover ?? selected;
   const related = (a: string, b: string) => focus != null && (a === focus || b === focus);
 
   return (
-    <div className="mx-auto max-w-[1500px] px-4 py-8 sm:px-8">
-      <PageHeader kicker="Learning Map · concept graph" title="Your algorithm constellation"
-        subtitle="22 concepts ordered by prerequisites. Every estimate comes from judged evidence, fades without practice, and never jumps to 'strong' from a single solve." />
-      <div className="mb-4 flex flex-wrap gap-4 text-xs">
+    <Page width="max-w-7xl">
+      <PageHeader title="Learning Map"
+        description="22 concepts ordered by prerequisites. Every estimate comes from judged evidence, fades without practice, and never jumps to strong from a single solve." />
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
         {Object.entries(MASTERY_LABEL).map(([k, v]) => (
-          <span key={k} className="flex items-center gap-1.5 text-muted"><span className={cx("h-2.5 w-2.5 rounded-full", STATUS_STYLE[k].dot)} aria-hidden />{v}</span>
+          <span key={k} className="flex items-center gap-1.5 text-muted"><span className={cx("size-2 rounded-full", STATUS[k].dot)} aria-hidden />{v}</span>
         ))}
-        <span className="text-faint">Select a concept to light up its prerequisites.</span>
+        <span className="text-faint">Select a concept to highlight its prerequisites.</span>
       </div>
       <div className="relative">
-        <div className="surface overflow-x-auto rounded-2xl p-6">
-          <p className="mb-3 flex gap-[52px] font-mono text-[10px] uppercase tracking-[0.2em] text-faint" style={{ width: layout.width }}>
+        <div className="card overflow-x-auto p-6">
+          <p className="mb-3 flex text-xs text-faint" style={{ width: layout.width, gap: COL_GAP }}>
             {layout.cols.map((_, i) => <span key={i} style={{ width: NODE_W }}>{i === 0 ? "Foundations" : `Level ${i}`}</span>)}
           </p>
           <div className="relative" style={{ width: layout.width, height: layout.height }}>
             <svg width={layout.width} height={layout.height} className="absolute inset-0" aria-hidden>
-              <defs>
-                <linearGradient id="edge-ember" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#ffc35a" /><stop offset="1" stopColor="#ff4d6d" /></linearGradient>
-              </defs>
               {data.flatMap((c) => c.prerequisites.map((req) => {
                 const a = layout.pos.get(req), b = layout.pos.get(c.code);
                 if (!a || !b) return null;
@@ -90,34 +87,32 @@ export default function LearningMap() {
                 const lit = related(req, c.code);
                 return (
                   <path key={`${req}-${c.code}`} d={`M${x1} ${y1} C${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`} fill="none"
-                    stroke={lit ? "url(#edge-ember)" : STATUS_STYLE[layout.byCode.get(req)?.status ?? "INSUFFICIENT_EVIDENCE"].edge}
-                    strokeWidth={lit ? 2.5 : 1.25} strokeOpacity={focus && !lit ? 0.25 : 0.9} className="transition-all duration-300" />
+                    stroke={lit ? "var(--accent)" : "var(--line-strong)"} strokeWidth={lit ? 2 : 1}
+                    strokeOpacity={focus && !lit ? 0.4 : 1} className="transition-[stroke-opacity] duration-200" />
                 );
               }))}
             </svg>
             {data.map((c) => {
               const p = layout.pos.get(c.code)!;
-              const st = STATUS_STYLE[c.status];
+              const st = STATUS[c.status];
               const dim = focus != null && focus !== c.code && !c.prerequisites.includes(focus) && !layout.byCode.get(focus)?.prerequisites.includes(c.code);
+              const pct = c.status === "INSUFFICIENT_EVIDENCE" ? (c.evidence / 3) * 100 : (c.mastery ?? 0) * 100;
               return (
                 <button key={c.code} onClick={() => setSelected(c.code === selected ? undefined : c.code)}
                   onMouseEnter={() => setHover(c.code)} onMouseLeave={() => setHover(undefined)} aria-pressed={selected === c.code}
                   style={{ left: p.x, top: p.y, width: NODE_W, height: NODE_H }}
-                  className={cx("absolute rounded-2xl border bg-panel-2/95 p-3 text-left transition-all duration-300",
-                    selected === c.code ? "ember-border shadow-[0_0_30px_-6px_rgb(255_122_47/0.6)]" : st.ring, dim && "opacity-40")}>
+                  className={cx("absolute rounded-md border bg-panel p-3 text-left transition-[opacity,border-color,box-shadow] duration-200",
+                    selected === c.code ? "border-accent ring-2 ring-accent/25" : "border-line-strong hover:border-faint/60", dim && "opacity-40")}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[13px] font-semibold">{c.name}</span>
-                    <span className={cx("h-2 w-2 shrink-0 rounded-full", st.dot)} aria-hidden />
+                    <span className="truncate text-[13px] font-medium text-fg">{c.name}</span>
+                    <span className={cx("size-2 shrink-0 rounded-full", st.dot)} aria-hidden />
                   </div>
-                  {c.status === "INSUFFICIENT_EVIDENCE" ? (<>
-                    <p className="mt-1 text-[11px] text-faint">{c.evidence > 0 ? `Evidence ${c.evidence} of 3` : "No evidence yet"}</p>
-                    <div className="mt-2"><Meter label={`${c.name} evidence collected`} value={(c.evidence / 3) * 100} tone="bg-line-strong" /></div>
-                  </>) : (<>
-                    <p className={cx("mt-1 text-[11px]", masteryTone(c.status))}>{MASTERY_LABEL[c.status]} · {Math.round((c.mastery ?? 0) * 100)}%</p>
-                    <div className="mt-2"><Meter label={`${c.name} mastery`} value={(c.mastery ?? 0) * 100} tone={c.status === "STRONG" ? "bg-ok" : c.status === "WEAK" ? "bg-bad" : "bg-info"} /></div>
-                  </>)}
-                  <p className="mt-1.5 flex items-center justify-between text-[10px] text-faint">
-                    <span>{c.problemsSolved}/{c.problemsAvailable} solved</span>
+                  <p className={cx("mt-0.5 text-xs", c.status === "INSUFFICIENT_EVIDENCE" ? "text-faint" : masteryTone(c.status))}>
+                    {c.status === "INSUFFICIENT_EVIDENCE" ? (c.evidence > 0 ? `Evidence ${c.evidence} of 3` : "No evidence yet") : `${MASTERY_LABEL[c.status]} · ${Math.round(pct)}%`}
+                  </p>
+                  <div className="mt-2"><Meter label={`${c.name} ${c.status === "INSUFFICIENT_EVIDENCE" ? "evidence collected" : "mastery"}`} value={pct} tone={st.bar} /></div>
+                  <p className="mt-1.5 flex items-center justify-between text-[11px] text-faint">
+                    <span className="tabular-nums">{c.problemsSolved}/{c.problemsAvailable} solved</span>
                     {c.dueForRevision && <span className="text-warn">revise</span>}
                   </p>
                 </button>
@@ -126,36 +121,33 @@ export default function LearningMap() {
           </div>
         </div>
         {sel && (
-        <Card title={sel.name} icon={<Network className="h-4 w-4" />} glow
-          className="mt-6 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:max-h-[calc(100%-2rem)] lg:w-[340px] lg:overflow-y-auto animate-fade-up"
-          actions={<button onClick={() => setSelected(undefined)} className="rounded-lg p-1 text-faint hover:bg-panel-3 hover:text-fg" aria-label="Close concept detail"><X className="h-4 w-4" aria-hidden /></button>}>
-          {(
+          <Card title={sel.name} className="mt-6 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:max-h-[calc(100%-2rem)] lg:w-[340px] lg:overflow-y-auto lg:shadow-lg"
+            actions={<button onClick={() => setSelected(undefined)} className="grid size-7 place-items-center rounded-md text-faint hover:bg-panel-2 hover:text-fg" aria-label="Close concept detail"><X className="size-4" aria-hidden /></button>}>
             <div className="space-y-4 text-sm">
               <p className="text-muted">{sel.description}</p>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className={cx(masteryTone(sel.status), "border-current/30")}>{MASTERY_LABEL[sel.status]}</Badge>
+                <Badge tone={STATUS[sel.status].tone}>{MASTERY_LABEL[sel.status]}</Badge>
                 <span className="text-xs text-muted">{sel.evidence} weighted evidence{sel.lastSuccessAt ? ` · last success ${relativeTime(sel.lastSuccessAt)}` : ""}</span>
               </div>
               {sel.prerequisites.length > 0 && <p className="text-xs text-faint">Builds on: {sel.prerequisites.map((r) => layout.byCode.get(r)?.name ?? r).join(", ")}</p>}
               {sel.status === "INSUFFICIENT_EVIDENCE" && <p className="text-xs text-faint">At least 3 weighted pieces of evidence are needed before an estimate is reported.</p>}
               {sel.status === "DEVELOPING" && (sel.mastery ?? 0) >= 0.7 && <p className="text-xs text-faint">High accuracy so far, but no successful transfer problem yet, so it is not marked strong.</p>}
-              <ul className="space-y-3.5">
+              <ul className="space-y-4 border-t border-line pt-4">
                 {sel.dimensions.map((d) => (
                   <li key={d.dimension}>
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-[13px]">
                       <span className="font-medium text-fg">{d.dimension.replace("_", " ").toLowerCase().replace(/^./, (m) => m.toUpperCase())}</span>
-                      <span className="font-mono text-muted">{d.estimate != null ? `${Math.round(d.estimate * 100)}% · ${d.evidence} ev.` : "no evidence"}</span>
+                      <span className="font-mono text-xs text-muted">{d.estimate != null ? `${Math.round(d.estimate * 100)}% · ${d.evidence} ev.` : "no evidence"}</span>
                     </div>
                     <div className="mt-1.5"><Meter label={d.dimension} value={(d.estimate ?? 0) * 100} /></div>
-                    <p className="mt-1 text-[11px] leading-snug text-faint">{DIMENSION_INFO[d.dimension]}</p>
+                    <p className="mt-1 text-xs leading-snug text-faint">{DIMENSION_INFO[d.dimension]}</p>
                   </li>
                 ))}
               </ul>
             </div>
-          )}
-        </Card>
+          </Card>
         )}
       </div>
-    </div>
+    </Page>
   );
 }
