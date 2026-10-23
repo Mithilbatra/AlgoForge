@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Circle, CircleDashed, EyeOff, Link2, RefreshCw, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Circle, CircleDashed, Dices, EyeOff, Link2, RefreshCw, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import { Badge, Button, Card, cx, Empty, ErrorNote, Input, Page, PageHeader, Segmented, Select, Skeleton } from "@/components/ui";
 import { errorMessage, get, poll, post } from "@/lib/api";
 import { difficultyTone, STATUS_LABEL } from "@/lib/format";
 import type { Page as Paged, ProblemSummary, SourceInfo } from "@/lib/types";
+import { randomProblemId } from "@/lib/problems";
 import { useApi } from "@/lib/useApi";
 import { useTitle } from "@/lib/useTitle";
 
@@ -44,11 +45,17 @@ export default function ProblemHub() {
   const { data, error, loading, reload } = useApi<Paged<ProblemSummary>>(query);
   const sources = useApi<SourceInfo[]>("/api/sources");
   const set = (k: keyof typeof f) => (v: string) => { setF({ ...f, [k]: v }); setPage(0); };
+  const [rolling, setRolling] = useState(false);
+  const surprise = () => {
+    setRolling(true);
+    randomProblemId().then((id) => (id ? router.push(`/problems/${id}`) : setRolling(false))).catch(() => setRolling(false));
+  };
 
   return (
     <Page width="max-w-7xl">
       <PageHeader title="Problem Hub"
-        description={<>{data ? `${data.total.toLocaleString()} problems. ` : ""}Originals are judged here; synced and linked problems keep their statements on the source platform.</>} />
+        description={<>{data ? `${data.total.toLocaleString()} problems. ` : ""}Originals are judged here; synced and linked problems keep their statements on the source platform.</>}
+        actions={<Button onClick={surprise} disabled={rolling} title="Open a random problem you haven't tried yet"><Dices className={cx(rolling && "animate-spin")} aria-hidden />Surprise me</Button>} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0">
           <div className="mb-4 space-y-3">
@@ -97,8 +104,9 @@ export default function ProblemHub() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {data.items.map((p) => (
-                    <tr key={p.id} className="group cursor-pointer transition-colors hover:bg-panel-2/60" onClick={() => router.push(`/problems/${p.id}`)}>
+                  {data.items.map((p, i) => (
+                    <tr key={p.id} className="group cursor-pointer transition-colors hover:bg-panel-2/60 animate-enter" style={{ animationDelay: `${Math.min(i, 12) * 22}ms` }}
+                      onClick={() => router.push(`/problems/${p.id}`)}>
                       <td className="py-3 pl-4"><StatusIcon status={p.status} /></td>
                       <td className="px-3 py-3">
                         <Link href={`/problems/${p.id}`} className="font-medium text-fg underline-offset-4 group-hover:underline" onClick={(e) => e.stopPropagation()}>{p.title}</Link>
@@ -117,7 +125,10 @@ export default function ProblemHub() {
                         <Badge tone={difficultyTone(p.difficulty)}>{p.difficulty?.toLowerCase() ?? "unrated"}</Badge>
                         {p.sourceRating ? <span className="ml-1.5 font-mono text-xs text-faint">{p.sourceRating}</span> : null}
                       </td>
-                      <td className="hidden px-3 py-3 pr-4 text-right text-[13px] tabular-nums text-muted lg:table-cell">{p.estMinutes ? `${p.estMinutes} min` : "—"}</td>
+                      <td className="hidden px-3 py-3 pr-4 text-right text-[13px] tabular-nums text-muted lg:table-cell">
+                        {p.estMinutes ? `${p.estMinutes} min` : "—"}
+                        <ChevronRight className="ml-1.5 inline size-4 -translate-x-1 text-faint opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" aria-hidden />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

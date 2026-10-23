@@ -3,7 +3,7 @@
 import { Code2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BenchmarkChart } from "@/components/TrendChart";
+import { BenchmarkChart } from "@/components/BenchmarkChart";
 import { BackLink, Badge, Button, ButtonLink, Card, cx, ErrorNote, Meter, Page, Ring, Spinner, Verdict, type Tone } from "@/components/ui";
 import { errorMessage, post } from "@/lib/api";
 import { formatMemory, LANGUAGE_LABEL } from "@/lib/format";

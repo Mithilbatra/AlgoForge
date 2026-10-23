@@ -100,6 +100,17 @@ test("recommendations: accept today's first pick and complete it", async ({ page
   await expect(page.getByText(/Evidence|Developing|Weak|Strong/).first()).toBeVisible();
 });
 
+test("command palette: search a problem and jump to it", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+k");
+  const input = page.getByRole("combobox", { name: "Search problems, pages and actions" });
+  await input.fill("Range");
+  await expect(page.getByRole("option", { name: /Range Totals/ })).toBeVisible();
+  await input.press("Enter");
+  await expect(page.getByRole("heading", { name: "Range Totals" })).toBeVisible();
+});
+
 test.describe("signed out", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 

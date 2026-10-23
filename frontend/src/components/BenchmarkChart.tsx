@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useTheme } from "@/lib/theme";
 
 // SVG marks need literal colours; these mirror the design tokens. Neutral marks keep 3:1 against the panel.
@@ -22,22 +22,6 @@ function useChart() {
   };
 }
 
-export function TrendChart({ data }: { data: { week: string; accepted: number; judged: number; acceptRate: number }[] }) {
-  const { c, axis, tooltip } = useChart();
-  return (
-    <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barGap={3}>
-        <CartesianGrid stroke={c.grid} vertical={false} />
-        <XAxis dataKey="week" {...axis} tickFormatter={(w: string) => w.slice(5)} />
-        <YAxis {...axis} allowDecimals={false} />
-        <Tooltip {...tooltip} cursor={{ fill: c.grid, opacity: 0.5 }} />
-        <Bar dataKey="judged" name="Judged" fill={c.neutral} radius={[3, 3, 0, 0]} maxBarSize={18} />
-        <Bar dataKey="accepted" name="Accepted" fill={c.accent} radius={[3, 3, 0, 0]} maxBarSize={18} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
 export function BenchmarkChart({ points }: { points: { n: number; medianMs: number; minMs: number; maxMs: number }[] }) {
   const { c, axis, tooltip } = useChart();
   return (
@@ -52,15 +36,5 @@ export function BenchmarkChart({ points }: { points: { n: number; medianMs: numb
         <Line type="monotone" dataKey="minMs" name="Min" stroke={c.neutral} dot={false} strokeDasharray="4 3" />
       </LineChart>
     </ResponsiveContainer>
-  );
-}
-
-/** Legend chips for TrendChart, shown in its card header. */
-export function TrendLegend() {
-  return (
-    <span className="flex items-center gap-4 text-xs text-muted">
-      <span className="flex items-center gap-1.5"><i className="size-2 rounded-sm bg-[#8b8b94] dark:bg-[#6b6b75]" />Judged</span>
-      <span className="flex items-center gap-1.5"><i className="size-2 rounded-sm bg-accent" />Accepted</span>
-    </span>
   );
 }

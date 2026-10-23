@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Flame, Timer, TrendingUp } from "lucide-react";
+import { ArrowRight, Flame, Timer } from "lucide-react";
 import { useMe } from "@/components/AppShell";
 import { RecommendationList } from "@/components/RecommendationList";
-import { TrendChart, TrendLegend } from "@/components/TrendChart";
+import { ActivityHeatmap, type ActivityDay } from "@/components/ActivityHeatmap";
 import { Badge, ButtonLink, Callout, Card, cx, Empty, ErrorNote, Meter, Page, PageHeader, Skeleton, Stat, StatStrip, Verdict } from "@/components/ui";
 import { MASTERY_LABEL, masteryTone, relativeTime } from "@/lib/format";
 import type { ConceptMastery, Page as Paged, ProblemSummary, Recommendation } from "@/lib/types";
@@ -21,6 +21,7 @@ interface Dashboard {
   conceptStatusCounts: Record<string, number>;
   revisionQueue: string[];
   trend: { week: string; accepted: number; judged: number; acceptRate: number }[];
+  activity: ActivityDay[];
   timeInsights: { assessments: number; avgPercent?: number; avgMinutesUsed?: number };
   streakDays?: number;
 }
@@ -61,7 +62,7 @@ function MasteryBar({ counts }: { counts: Record<string, number> }) {
 export default function DashboardPage() {
   useTitle("Dashboard");
   const me = useMe();
-  const { data, error, reload, setData } = useApi<Dashboard>("/api/dashboard");
+  const { data, error, reload, setData } = useApi<Dashboard>(`/api/dashboard?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`);
   const solved = useApi<Paged<ProblemSummary>>("/api/problems?status=SOLVED&size=1");
 
   if (error) return <Page><ErrorNote message={error} onRetry={reload} /></Page>;
@@ -70,7 +71,7 @@ export default function DashboardPage() {
       <Page>
         <Skeleton className="mb-8 h-12 w-80" />
         <Skeleton className="h-24" />
-        <div className="mt-6 grid gap-6 lg:grid-cols-3"><Skeleton className="h-72 lg:col-span-2" /><Skeleton className="h-72" /></div>
+        <div className="stagger mt-6 grid gap-6 lg:grid-cols-3"><Skeleton className="h-72 lg:col-span-2" /><Skeleton className="h-72" /></div>
       </Page>
     );
   }
@@ -107,7 +108,7 @@ export default function DashboardPage() {
         <Stat label="Assessments" value={data.timeInsights.assessments} sub={data.timeInsights.assessments ? `${data.timeInsights.avgPercent}% average score` : "None completed yet"} />
       </StatStrip>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="stagger mt-6 grid gap-6 lg:grid-cols-3">
         <Card title="Today's session" className="lg:col-span-2" padded={false} actions={linkAction("/practice", "View all")}>
           {data.recommendations.length === 0 ? <p className="p-5 text-sm text-muted">No recommendations yet.</p>
             : <RecommendationList compact items={data.recommendations.slice(0, 3)} onChange={(r) => setData({ ...data, recommendations: r })} />}
@@ -130,9 +131,8 @@ export default function DashboardPage() {
           {data.revisionQueue.length > 0 && <p className="mt-4 text-xs text-warn">Due for revision: {data.revisionQueue.join(", ")}</p>}
         </Card>
 
-        <Card title="Activity" description="Judged and accepted submissions per week" className="lg:col-span-2" actions={<TrendLegend />}>
-          {data.trend.length === 0 ? <Empty title="No activity in the last 8 weeks" icon={<TrendingUp aria-hidden />} /> : <TrendChart data={data.trend} />}
-          <p className="mt-3 text-xs text-faint">Volume shows activity, not learning. The Learning Map tracks what you can transfer to new problems.</p>
+        <Card title="Activity" description="Judged submissions per day. Volume shows practice, not learning." className="lg:col-span-2">
+          <ActivityHeatmap days={data.activity ?? []} />
         </Card>
         <Card title="Time management">
           {data.timeInsights.assessments === 0 ? (

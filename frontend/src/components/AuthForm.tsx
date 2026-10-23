@@ -23,17 +23,21 @@ const PREVIEW_CONCEPTS = [
 /** A static picture of the product (a verdict and the learning map), drawn with the real components. */
 function Preview() {
   return (
-    <div className="space-y-3" aria-hidden>
+    <div className="stagger space-y-3 [&>*]:animate-enter" aria-hidden>
       <div className="card p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-fg">Courier Capacity</p>
             <p className="mt-0.5 text-xs text-muted">Python 3 · submitted just now</p>
           </div>
-          <Badge tone="ok"><span className="size-1.5 rounded-full bg-current" />Accepted</Badge>
+          {/* Looping demo: tests pass one by one, then the verdict replaces "Judging". */}
+          <span className="relative h-5 w-24">
+            <span className="demo-pending absolute right-0"><Badge tone="info"><span className="size-1.5 animate-pulse rounded-full bg-current" />Judging…</Badge></span>
+            <span className="demo-verdict absolute right-0"><Badge tone="ok"><span className="size-1.5 rounded-full bg-current" />Accepted</Badge></span>
+          </span>
         </div>
         <div className="mt-3 flex gap-1">
-          {Array.from({ length: 8 }, (_, i) => <span key={i} className="h-6 flex-1 rounded bg-ok/15 ring-1 ring-inset ring-ok/25" />)}
+          {Array.from({ length: 8 }, (_, i) => <span key={i} className="demo-chip h-6 flex-1 rounded" style={{ ["--i" as string]: i }} />)}
         </div>
         <p className="mt-2 font-mono text-xs text-faint">8/8 tests passed · 48 ms · 19.2 MB</p>
       </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 import { AlertTriangle, ChevronLeft, Inbox, type LucideIcon } from "lucide-react";
 import { verdictTone, VERDICT_LABEL } from "@/lib/format";
+import { CountUp } from "./CountUp";
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
@@ -28,7 +29,7 @@ export function Page({ children, width = "max-w-6xl" }: { children: ReactNode; w
 
 export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4 animate-enter">
       <div className="min-w-0 max-w-3xl">
         <h1 className="text-2xl font-semibold tracking-tight text-fg">{title}</h1>
         {description && <p className="mt-1.5 text-sm leading-relaxed text-muted">{description}</p>}
@@ -61,7 +62,7 @@ export function Card({ title, description, icon, actions, children, className, b
   className?: string; bodyClassName?: string; padded?: boolean;
 }) {
   return (
-    <section className={cx("card", className)}>
+    <section className={cx("card min-w-0 animate-enter", className)}>
       {(title || actions) && (
         <header className="flex min-h-12 items-center justify-between gap-3 border-b border-line px-5 py-2.5">
           <div className="min-w-0">
@@ -82,7 +83,7 @@ export function Card({ title, description, icon, actions, children, className, b
 /** A quiet notice row (empty-state nudges, in-progress banners). */
 export function Callout({ icon, children, action, tone = "neutral" }: { icon?: ReactNode; children: ReactNode; action?: ReactNode; tone?: "neutral" | "accent" | "warn" }) {
   return (
-    <div className={cx("flex items-center gap-3 rounded-lg border px-4 py-3 text-sm",
+    <div className={cx("flex items-center gap-3 rounded-lg border px-4 py-3 text-sm animate-enter",
       tone === "accent" ? "border-accent/25 bg-accent/5" : tone === "warn" ? "border-warn/25 bg-warn/5" : "border-line bg-panel-2/60")}>
       {icon && <span className={cx("shrink-0 [&_svg]:size-4", tone === "accent" ? "text-accent" : tone === "warn" ? "text-warn" : "text-faint")}>{icon}</span>}
       <div className="min-w-0 flex-1 text-muted">{children}</div>
@@ -153,7 +154,7 @@ export function Meter({ value, tone = "bg-accent", label }: { value: number; ton
   const pct = Math.max(0, Math.min(100, value));
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-panel-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label={label}>
-      <div className={cx("h-full rounded-full transition-[width] duration-500", tone)} style={{ width: `${pct}%` }} />
+      <div className={cx("h-full rounded-full transition-[width] duration-500 animate-grow", tone)} style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -168,7 +169,8 @@ export function Ring({ value, size = 120, stroke = 8, label, children }: { value
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--panel-3)" strokeWidth={stroke} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--accent)" strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} className="transition-[stroke-dashoffset] duration-700 ease-out" />
+          strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} className="transition-[stroke-dashoffset] duration-700 ease-out"
+          style={{ ["--ring-c" as string]: c, animation: "ring-in 1s cubic-bezier(0.16, 1, 0.3, 1) both" }} />
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
     </div>
@@ -178,9 +180,9 @@ export function Ring({ value, size = 120, stroke = 8, label, children }: { value
 /** One figure in a stats strip (see StatStrip). */
 export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="bg-panel px-5 py-4">
+    <div className="bg-panel px-5 py-4 animate-enter">
       <p className="text-[13px] text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-fg">{value}</p>
+      <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-fg">{typeof value === "number" ? <CountUp value={value} /> : value}</p>
       {sub && <p className="mt-0.5 text-xs text-faint">{sub}</p>}
     </div>
   );
@@ -188,7 +190,7 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
 
 /** Hairline-separated grid of Stat cells (the 1px gaps show the border colour behind them). */
 export function StatStrip({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx("grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-(--shadow-card) lg:grid-cols-4", className)}>{children}</div>;
+  return <div className={cx("stagger grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-(--shadow-card) lg:grid-cols-4", className)}>{children}</div>;
 }
 
 export function Spinner({ label }: { label?: string }) {

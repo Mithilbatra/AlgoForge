@@ -8,7 +8,7 @@ What each label means:
 - **Unconfigured**: implemented, but not exercised live because credentials were unavailable.
 - **Not implemented**: deliberately left out.
 
-Last full run: 93 backend tests (3 opt-in live tests skipped without keys) and 7 Playwright journeys against a production build of the web app with a local API and worker.
+Last full run: 94 backend tests (3 opt-in live tests skipped without keys) and 8 Playwright journeys against a production build of the web app with a local API and worker.
 
 ## Status by area
 
@@ -41,6 +41,7 @@ Last full run: 93 backend tests (3 opt-in live tests skipped without keys) and 7
 | Learning | Transfer Test Engine (tier 1 → 2 → 3 within a concept; disguised picks never name the technique), daily session with reasons built once per day, accept/skip/replace, completion on accepted | Tested, verified | e2e recommendations journey, `LearningIntegrationTest`, browser |
 | Dashboard | Recent activity, today's session, weakest concepts, weekly judged/accepted chart, time management from assessments, optional streak | Verified | Browser |
 | UI | Design system (tokens, AA contrast, shared components), light and dark themes with a system default and no flash on load, responsive app shell, concept-graph Learning Map | Verified | Every page screenshotted at 1440 px in both themes and at phone width; 7 Playwright journeys |
+| UI | Command palette (⌘K), activity heatmap counted in the browser's time zone, live judging steps, animated verdicts, typing coach replies, timer ring, flowing learning-map edges, circular theme transition; all motion off for reduced motion | Tested, verified | `activityDaysAreCountedInTheBrowsersTimeZone`, e2e command palette journey, screenshots mid-animation in both themes and at phone width |
 | Ops | Flyway migrations, Dockerfiles, compose (dev DB or full stack), health and metrics endpoints, OpenAPI at `/api/docs`, retention job, audit log | Verified | Full stack started and passed e2e |
 
 ## Known limitations and future work

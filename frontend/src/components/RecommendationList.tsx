@@ -40,14 +40,14 @@ export function RecommendationList({ items, onChange, compact = false }: { items
   return (
     <div>
       {error && <div className="px-5 pt-4"><ErrorNote message={error} /></div>}
-      <div className="divide-y divide-line">
+      <div className="stagger divide-y divide-line">
         {items.map((r) => {
           const k = KIND[r.kind] ?? KIND.NEW;
           const Icon = k.icon;
           const done = r.status === "SKIPPED" || r.status === "COMPLETED";
           const actionable = !compact && (r.status === "PENDING" || r.status === "ACCEPTED");
           return (
-            <article key={r.id} data-rec aria-label={r.title} className={cx("flex gap-4 px-5 py-4", done && "opacity-60")}>
+            <article key={r.id} data-rec aria-label={r.title} className={cx("flex gap-4 px-5 py-4 animate-enter", done && "opacity-60")}>
               <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md border border-line bg-panel-2 text-muted"><Icon className="size-4" aria-hidden /></span>
               <div className="min-w-0 flex-1 gap-4 sm:flex sm:items-start sm:justify-between">
                 <div className="min-w-0">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock, Cpu, FlaskConical, Hammer, MemoryStick, Timer, XCircle, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, Cpu, FlaskConical, Hammer, MemoryStick, Timer, XCircle, type LucideIcon } from "lucide-react";
 import { formatMemory, PENDING, VERDICT_LABEL, VERDICT_SHORT, verdictTone } from "@/lib/format";
 import type { Job, RunResult, SubmissionDetail } from "@/lib/types";
 import { Badge, cx, Spinner, TONE, Verdict } from "./ui";
@@ -62,25 +62,43 @@ export function RunView({ job }: { job: Job<RunResult> }) {
   );
 }
 
+const STEPS = [["QUEUED", "Queued"], ["COMPILING", "Compiling"], ["RUNNING", "Running tests"]] as const;
+
+/** Where the judge is: queued, compiling, running tests. Driven by the submission status the page polls. */
+function JudgeProgress({ status }: { status: string }) {
+  const at = STEPS.findIndex(([s]) => s === status);
+  return (
+    <div className="rounded-lg border border-line p-4" role="status" aria-label={`${VERDICT_LABEL[status]}…`}>
+      <ol className="flex items-center gap-2 text-[13px]">
+        {STEPS.map(([key, label], i) => (
+          <li key={key} className="flex flex-1 items-center gap-2 last:flex-none">
+            <span className={cx("grid size-5 shrink-0 place-items-center rounded-full border text-[10px] font-semibold transition-colors",
+              i < at ? "border-ok bg-ok text-bg" : i === at ? "border-accent text-accent" : "border-line-strong text-faint")}>
+              {i < at ? <Check className="size-3" aria-hidden /> : i === at ? <span className="size-1.5 animate-pulse rounded-full bg-accent" /> : i + 1}
+            </span>
+            <span className={cx("whitespace-nowrap", i <= at ? "text-fg" : "text-faint")}>{label}</span>
+            {i < STEPS.length - 1 && <span className={cx("h-px flex-1 transition-colors", i < at ? "bg-ok" : "bg-line")} aria-hidden />}
+          </li>
+        ))}
+      </ol>
+      <div className="mt-4 h-1 overflow-hidden rounded-full bg-panel-3" aria-hidden><div className="progress-indeterminate h-full w-2/5 rounded-full bg-accent/70" /></div>
+      <p className="mt-2 text-xs text-faint">Compiled and run for real in an isolated sandbox.</p>
+    </div>
+  );
+}
+
 export function SubmissionView({ s, practice, onDeepEvaluate, deepBusy }: {
   s: SubmissionDetail; practice: boolean; onDeepEvaluate?: () => void; deepBusy?: boolean;
 }) {
-  if (PENDING.includes(s.status)) {
-    return (
-      <div className="flex items-center gap-3 rounded-lg border border-line bg-panel-2/50 px-4 py-3">
-        <Spinner label={`${VERDICT_LABEL[s.status]}…`} />
-        <span className="text-xs text-faint">Real compile and run in an isolated sandbox</span>
-      </div>
-    );
-  }
+  if (PENDING.includes(s.status)) return <JudgeProgress status={s.status} />;
   const tone = verdictTone(s.status);
   const Icon = VERDICT_ICON[s.status] ?? AlertTriangle;
   const firstFail = s.tests.find((t) => t.verdict !== "ACCEPTED" && (t.input != null || t.outputExcerpt != null));
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 animate-enter">
         <div className="flex items-center gap-2.5">
-          <Icon className={cx("size-5", TONE_TEXT[tone])} aria-hidden />
+          <Icon className={cx("size-5", TONE_TEXT[tone], s.status === "ACCEPTED" && "draw-check")} aria-hidden />
           <p className={cx("text-base font-semibold", TONE_TEXT[tone])}>{VERDICT_LABEL[s.status] ?? s.status}</p>
           {s.total != null && <p className="text-[13px] text-muted">{s.passed}/{s.total} tests passed</p>}
         </div>
@@ -96,7 +114,8 @@ export function SubmissionView({ s, practice, onDeepEvaluate, deepBusy }: {
         <div className="flex flex-wrap gap-1" aria-label="Per-test verdicts">
           {s.tests.map((t, i) => (
             <span key={t.ordinal} title={`Test ${i + 1} (${t.kind.toLowerCase()}): ${VERDICT_LABEL[t.verdict]}${t.timeMs != null ? `, ${t.timeMs} ms` : ""}`}
-              className={cx("inline-flex h-7 min-w-10 items-center justify-center gap-1 rounded px-1.5 font-mono text-[11px] ring-1 ring-inset", TONE[verdictTone(t.verdict)])}>
+              style={{ animationDelay: `${120 + i * 35}ms` }}
+              className={cx("inline-flex h-7 min-w-10 items-center justify-center gap-1 rounded px-1.5 font-mono text-[11px] ring-1 ring-inset animate-enter", TONE[verdictTone(t.verdict)])}>
               <span className="opacity-70">{i + 1}</span>{VERDICT_SHORT[t.verdict]}
             </span>
           ))}

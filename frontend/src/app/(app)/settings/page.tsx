@@ -41,7 +41,7 @@ export default function SettingsPage() {
   return (
     <Page width="max-w-3xl">
       <PageHeader title="Settings" description={me ? `Signed in as ${me.email}` : undefined} />
-      <div className="space-y-6">
+      <div className="stagger space-y-6">
         <Card title="Appearance" description="Follow your system, or pick a theme for this browser">
           <Segmented label="Theme" value={theme.pref} onChange={theme.setPref} options={THEMES} />
         </Card>

@@ -5,6 +5,7 @@ import com.algoforge.learning.LearningService;
 import com.algoforge.learning.LearningService.ConceptMastery;
 import com.algoforge.learning.RecommendationService;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** One call for the dashboard; every number is computed from the user's own records. */
@@ -29,8 +31,10 @@ public class DashboardController {
     }
 
     @GetMapping("/api/dashboard")
-    public Map<String, Object> dashboard(Authentication auth) {
+    public Map<String, Object> dashboard(Authentication auth, @RequestParam(required = false) String tz) {
         long uid = CurrentUser.id(auth);
+        // Days are counted in the browser's time zone so late-evening practice lands on the right day; unknown zones fall back to UTC.
+        String zone = tz != null && ZoneId.getAvailableZoneIds().contains(tz) ? tz : "UTC";
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("recentSubmissions", jdbc.sql("""
                 select s.id, s.problem_id as "problemId", p.title, s.language, s.status, s.passed, s.total, s.created_at as "createdAt",
@@ -50,6 +54,11 @@ public class DashboardController {
                 select goal_text as "goalText", goal_date as "goalDate", goal_concepts::text as "goalConcepts", daily_minutes as "dailyMinutes",
                        show_streak as "showStreak" from user_preferences where user_id = ?""").param(uid).query().singleRow());
         out.put("recommendations", recommendations.today(uid));
+        out.put("activity", jdbc.sql("""
+                select (created_at at time zone :tz)::date as day, count(*) as judged, count(*) filter (where status = 'ACCEPTED') as accepted
+                  from submissions where user_id = :uid and judged_at is not null and status <> 'INTERNAL_ERROR'
+                   and created_at > now() - interval '54 weeks'
+                 group by 1 order by 1""").param("tz", zone).param("uid", uid).query().listOfRows());
 
         List<ConceptMastery> concepts = learning.concepts(uid);
         out.put("weakestConcepts", concepts.stream().filter(c -> c.mastery() != null && !c.status().equals("INSUFFICIENT_EVIDENCE"))

@@ -67,8 +67,8 @@ export default function OaArena() {
       )}
 
       <SectionTitle>Templates</SectionTitle>
-      {!defs.data ? <div className="mb-10 grid gap-4 md:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-60" />)}</div> : (
-        <div className="mb-10 grid gap-4 md:grid-cols-3">
+      {!defs.data ? <div className="stagger mb-10 grid gap-4 md:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-60" />)}</div> : (
+        <div className="stagger mb-10 grid gap-4 md:grid-cols-3">
           {templates.map((t) => (
             <Card key={t.id} className="h-full" bodyClassName="flex h-full flex-col">
               <div className="flex items-start justify-between gap-3">

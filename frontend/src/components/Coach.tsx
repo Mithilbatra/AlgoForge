@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import { ArrowUp, Compass, Lightbulb, ListOrdered, type LucideIcon } from "lucide-react";
 import { errorMessage, post } from "@/lib/api";
+import { useReveal } from "@/lib/motion";
 import type { Language } from "@/lib/types";
 import { LogoMark } from "./Logo";
 import { Badge, cx } from "./ui";
@@ -18,6 +19,30 @@ const LEVELS: { level: number; label: string; icon: LucideIcon; text: string }[]
 ];
 
 const STARTERS = ["Give me a nudge to get started", "Why is my last submission failing?", "Is my approach fast enough for these constraints?"];
+
+/** One coach reply, revealed a few words at a time; the next step and source appear once it is complete. */
+function CoachMessage({ reply }: { reply: CoachReply }) {
+  const { text, done } = useReveal(reply.reply, true);
+  return (
+    <div className="flex gap-2.5 animate-enter">
+      <LogoMark size={24} className="mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className={cx("prose-af text-[13.5px]", !done && "typing")}><ReactMarkdown>{text}</ReactMarkdown></div>
+        {done && (
+          <div className="animate-enter">
+            {reply.nextStep && (
+              <p className="mt-2.5 rounded-md border border-line bg-panel-2/50 px-3 py-2 text-[13px] text-fg"><span className="font-medium">Next step: </span>{reply.nextStep}</p>
+            )}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge>{reply.source === "ai" ? `AI · ${reply.provider}` : "Built-in coach"}</Badge>
+              {reply.notice && <span className="text-xs text-faint">{reply.notice}</span>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /** Forge Coach chat. The server decides what the coach may say; this only sends the learner's context. */
 export function Coach({ problemId, code, language, submissionId }: { problemId: number; code: string; language: Language; submissionId?: number }) {
@@ -84,28 +109,14 @@ export function Coach({ problemId, code, language, submissionId }: { problemId: 
           </div>
         )}
         {msgs.map((m, i) => m.role === "user" ? (
-          <div key={i} className="flex justify-end">
+          <div key={i} className="flex justify-end animate-enter">
             <div className="max-w-[85%] rounded-lg bg-panel-2 px-3 py-2 text-[13px] text-fg">
               <span className="mr-1.5 text-xs text-faint">{LEVELS[m.level - 1].label} ·</span>{m.text}
             </div>
           </div>
         ) : m.role === "error" ? (
           <p key={i} className="rounded-md border border-bad/25 bg-bad/5 px-3 py-2 text-[13px] text-bad">{m.text}</p>
-        ) : (
-          <div key={i} className="flex gap-2.5">
-            <LogoMark size={24} className="mt-0.5 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="prose-af text-[13.5px]"><ReactMarkdown>{m.reply.reply}</ReactMarkdown></div>
-              {m.reply.nextStep && (
-                <p className="mt-2.5 rounded-md border border-line bg-panel-2/50 px-3 py-2 text-[13px] text-fg"><span className="font-medium">Next step: </span>{m.reply.nextStep}</p>
-              )}
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge>{m.reply.source === "ai" ? `AI · ${m.reply.provider}` : "Built-in coach"}</Badge>
-                {m.reply.notice && <span className="text-xs text-faint">{m.reply.notice}</span>}
-              </div>
-            </div>
-          </div>
-        ))}
+        ) : <CoachMessage key={i} reply={m.reply} />)}
         {busy && (
           <div className="flex items-center gap-2.5">
             <LogoMark size={24} />

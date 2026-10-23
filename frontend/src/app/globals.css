@@ -87,32 +87,35 @@
   background-size: 14px;
 }
 
-html {
-  background-color: var(--bg);
-}
+/* Base element styles live in the base layer so utilities (outline-none, ring, ...) can override them. */
+@layer base {
+  html {
+    background-color: var(--bg);
+  }
 
-body {
-  background-color: var(--bg);
-  color: var(--fg);
-  font-feature-settings: "ss01", "cv11";
-}
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-feature-settings: "ss01", "cv11";
+  }
 
-::selection {
-  background: color-mix(in oklab, var(--accent) 22%, transparent);
-}
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+  }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
-}
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
 
-input[type="checkbox"] {
-  accent-color: var(--fg);
+  input[type="checkbox"] {
+    accent-color: var(--fg);
+  }
 }
 
 /* Markdown: statements, editorials and coach replies. */
@@ -136,6 +139,64 @@ input[type="checkbox"] {
 [data-separator]::after { content: ""; position: absolute; inset: -3px; }
 [data-separator]:hover, [data-separator][data-separator-state="drag"] { background: var(--accent); }
 
+/*
+ * Motion. Short (150 to 450 ms), eased out, and only ever moves things a few pixels. Content enters once when it
+ * mounts; nothing loops except progress indicators and the sign-in demo. Everything stops for reduced motion.
+ */
+@keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.97) translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes grow-x { from { transform: scaleX(0); } }
+@keyframes ring-in { from { stroke-dashoffset: var(--ring-c); } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes flow { to { stroke-dashoffset: -12; } }
+@keyframes caret { 50% { opacity: 0; } }
+@keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
+@utility animate-enter { animation: enter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@utility animate-fade { animation: fade 0.2s ease-out both; }
+@utility animate-pop { animation: pop 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@utility animate-grow { transform-origin: left; animation: grow-x 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Children of a .stagger container enter one after another. */
+.stagger > * { animation-delay: calc(var(--stagger-step, 45ms) * var(--i, 0)); }
+.stagger > :nth-child(2) { --i: 1; } .stagger > :nth-child(3) { --i: 2; } .stagger > :nth-child(4) { --i: 3; }
+.stagger > :nth-child(5) { --i: 4; } .stagger > :nth-child(6) { --i: 5; } .stagger > :nth-child(7) { --i: 6; }
+.stagger > :nth-child(n + 8) { --i: 7; }
+
+/* Accepted: the check mark draws itself. */
+.draw-check circle { stroke-dasharray: 64; stroke-dashoffset: 64; animation: draw 0.5s ease-out forwards; }
+.draw-check path { stroke-dasharray: 12; stroke-dashoffset: 12; animation: draw 0.3s 0.35s ease-out forwards; }
+
+/* Learning map: highlighted prerequisite edges flow toward the selected concept. */
+.edge-flow { stroke-dasharray: 6 6; animation: flow 0.9s linear infinite; }
+
+/* A blinking caret after the text that is still being revealed (coach replies). */
+.typing > :last-child::after { content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: text-bottom; background: var(--accent); animation: caret 1s steps(1) infinite; }
+
+.progress-indeterminate { animation: indeterminate 1.2s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+
+/* Sign-in demo: tests turn green one by one, then the verdict appears; the loop restarts every 4.8 s. */
+@keyframes demo-chip { 0%, 6% { background: var(--panel-3); box-shadow: inset 0 0 0 1px var(--line); } 12%, 86% { background: color-mix(in oklab, var(--ok) 15%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ok) 30%, transparent); } 100% { background: var(--panel-3); box-shadow: inset 0 0 0 1px var(--line); } }
+@keyframes demo-verdict { 0%, 46% { opacity: 0; transform: scale(0.94); } 52%, 88% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+@keyframes demo-pending { 0%, 44% { opacity: 1; } 50%, 92% { opacity: 0; } 100% { opacity: 1; } }
+.demo-chip { animation: demo-chip 4.8s ease-in-out infinite; animation-delay: calc(var(--i) * 0.16s); }
+.demo-verdict { animation: demo-verdict 4.8s ease-in-out infinite; }
+.demo-pending { animation: demo-pending 4.8s ease-in-out infinite; }
+
+/* Theme switch: the new theme spreads out in a circle from where you clicked (View Transitions, where supported). */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) { animation: theme-reveal 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+@keyframes theme-reveal {
+  from { clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 50%)); }
+  to { clip-path: circle(var(--vt-r, 150%) at var(--vt-x, 50%) var(--vt-y, 50%)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, ::before, ::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  /* Loops settle on their meaningful end state instead. */
+  .demo-chip, .demo-verdict, .demo-pending, .progress-indeterminate { animation: none !important; }
+  .demo-chip { background: color-mix(in oklab, var(--ok) 15%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ok) 30%, transparent); }
+  .demo-pending { opacity: 0; }
+  .progress-indeterminate { width: 100%; opacity: 0.4; }
 }

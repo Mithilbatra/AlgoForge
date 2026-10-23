@@ -88,7 +88,7 @@ export default function LearningMap() {
                 return (
                   <path key={`${req}-${c.code}`} d={`M${x1} ${y1} C${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`} fill="none"
                     stroke={lit ? "var(--accent)" : "var(--line-strong)"} strokeWidth={lit ? 2 : 1}
-                    strokeOpacity={focus && !lit ? 0.4 : 1} className="transition-[stroke-opacity] duration-200" />
+                    strokeOpacity={focus && !lit ? 0.4 : 1} className={cx("transition-[stroke-opacity] duration-200", lit && "edge-flow")} />
                 );
               }))}
             </svg>
@@ -100,8 +100,8 @@ export default function LearningMap() {
               return (
                 <button key={c.code} onClick={() => setSelected(c.code === selected ? undefined : c.code)}
                   onMouseEnter={() => setHover(c.code)} onMouseLeave={() => setHover(undefined)} aria-pressed={selected === c.code}
-                  style={{ left: p.x, top: p.y, width: NODE_W, height: NODE_H }}
-                  className={cx("absolute rounded-md border bg-panel p-3 text-left transition-[opacity,border-color,box-shadow] duration-200",
+                  style={{ left: p.x, top: p.y, width: NODE_W, height: NODE_H, animationDelay: `${(p.x / (NODE_W + COL_GAP)) * 70 + (p.y / (NODE_H + ROW_GAP)) * 15}ms` }}
+                  className={cx("absolute rounded-md border bg-panel p-3 text-left transition-[opacity,border-color,box-shadow] duration-200 animate-enter",
                     selected === c.code ? "border-accent ring-2 ring-accent/25" : "border-line-strong hover:border-faint/60", dim && "opacity-40")}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-[13px] font-medium text-fg">{c.name}</span>
@@ -121,7 +121,7 @@ export default function LearningMap() {
           </div>
         </div>
         {sel && (
-          <Card title={sel.name} className="mt-6 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:max-h-[calc(100%-2rem)] lg:w-[340px] lg:overflow-y-auto lg:shadow-lg"
+          <Card key={sel.code} title={sel.name} className="mt-6 lg:absolute lg:right-4 lg:top-4 lg:mt-0 lg:max-h-[calc(100%-2rem)] lg:w-[340px] lg:overflow-y-auto lg:shadow-lg"
             actions={<button onClick={() => setSelected(undefined)} className="grid size-7 place-items-center rounded-md text-faint hover:bg-panel-2 hover:text-fg" aria-label="Close concept detail"><X className="size-4" aria-hidden /></button>}>
             <div className="space-y-4 text-sm">
               <p className="text-muted">{sel.description}</p>

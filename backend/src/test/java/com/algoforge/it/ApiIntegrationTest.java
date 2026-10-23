@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.algoforge.judge.JobQueue;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -138,5 +140,23 @@ class ApiIntegrationTest extends IntegrationTest {
         assertThat(queue.recoverStale(60, 2)).anyMatch(r -> r.id() == job && r.status().equals("FAILED"));
         judge.markInternalError(sid, "The worker stopped while judging; please resubmit");  // what the worker's housekeeping does
         assertThat(jdbc.sql("select status from submissions where id = ?").param(sid).query(String.class).single()).isEqualTo("INTERNAL_ERROR");
+    }
+
+    @Test
+    void activityDaysAreCountedInTheBrowsersTimeZone() throws Exception {
+        Cookie s = register("heatmap");
+        long uid = userId(s);
+        // 20:00 UTC two days ago is already 01:30 the next day in India (UTC+5:30).
+        LocalDate utcDay = LocalDate.now(ZoneOffset.UTC).minusDays(2);
+        jdbc.sql("""
+                insert into submissions (user_id, problem_id, language, code, status, passed, total, judged_at, created_at)
+                values (?, ?, 'python', 'print(1)', 'ACCEPTED', 8, 8, now(), ?)""")
+                .params(uid, problemId("Stepping Stones"), utcDay.atTime(20, 0).atOffset(ZoneOffset.UTC)).update();
+        JsonNode india = body(mvc.perform(get("/api/dashboard?tz=Asia/Kolkata").cookie(s)).andExpect(status().isOk()).andReturn()).get("activity");
+        assertThat(india).hasSize(1);
+        assertThat(india.get(0).get("day").asText()).isEqualTo(utcDay.plusDays(1).toString());
+        assertThat(india.get(0).get("accepted").asInt()).isEqualTo(1);
+        JsonNode unknownZone = body(mvc.perform(get("/api/dashboard?tz=Not/A_Zone").cookie(s)).andExpect(status().isOk()).andReturn()).get("activity");
+        assertThat(unknownZone.get(0).get("day").asText()).isEqualTo(utcDay.toString());
     }
 }

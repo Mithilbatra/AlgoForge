@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, Flag, Timer } from "lucide-react";
+import { ChevronLeft, Flag } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Countdown } from "@/components/Countdown";
@@ -92,7 +92,7 @@ export default function AssessmentRoom() {
             Points <span data-testid="points" className="font-semibold tabular-nums text-fg">{state.pointsEarned}</span><span className="text-faint"> / {state.maxPoints}</span>
           </span>
           {open ? (
-            <span className="flex h-8 items-center gap-1.5 rounded-md border border-line px-2.5"><Timer className="size-3.5 text-faint" aria-hidden /><Countdown remainingMs={state.remainingMs} receivedAt={receivedAt} onExpire={refresh} /></span>
+            <span className="flex h-8 items-center rounded-md border border-line px-2.5"><Countdown remainingMs={state.remainingMs} receivedAt={receivedAt} onExpire={refresh} totalMs={new Date(state.endsAt).getTime() - new Date(state.startedAt).getTime()} /></span>
           ) : <span className="text-warn">Finalising…</span>}
           {open && <Button size="sm" variant="danger" onClick={finish}><Flag aria-hidden />Submit assessment</Button>}
         </div>

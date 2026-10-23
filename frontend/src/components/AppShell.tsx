@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { Flame, LayoutGrid, Library, LogOut, Monitor, Moon, Network, ScanSearch, Settings, Sun, Timer, type LucideIcon } from "lucide-react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Flame, LayoutGrid, Library, LogOut, Monitor, Moon, Network, ScanSearch, Search, Settings, Sun, Timer, type LucideIcon } from "lucide-react";
 import { get, post } from "@/lib/api";
 import { clearDrafts } from "@/lib/drafts";
 import { useTheme, type ThemePref } from "@/lib/theme";
 import type { Me } from "@/lib/types";
+import { CommandPalette } from "./CommandPalette";
 import { Logo, LogoMark } from "./Logo";
-import { cx, Segmented } from "./ui";
+import { cx, Kbd, Segmented } from "./ui";
 
 const MeContext = createContext<Me | null>(null);
 export const useMe = () => useContext(MeContext);
@@ -34,6 +35,9 @@ export const THEME_OPTIONS: { value: ThemePref; label: string; icon: LucideIcon;
   { value: "dark", label: "Dark theme", icon: Moon, iconOnly: true },
 ];
 
+const noop = () => () => {};
+const useIsMac = () => useSyncExternalStore(noop, () => /Mac|iPhone|iPad/.test(navigator.platform), () => false);
+
 function initials(name?: string) {
   return (name ?? "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "·";
 }
@@ -43,6 +47,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
+  const [palette, setPalette] = useState(false);
+  const mac = useIsMac();
+
+  // ⌘K / Ctrl+K opens the command palette anywhere except inside the code editor, which keeps its own Ctrl+K chords.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !(e.target as Element | null)?.closest?.(".monaco-editor")) {
+        e.preventDefault();
+        setPalette((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     const toLogin = () => router.replace(`/login?next=${encodeURIComponent(window.location.pathname)}`);
@@ -82,6 +100,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex h-14 items-center px-5">
             <Link href="/" aria-label="AlgoForge home"><Logo /></Link>
           </div>
+          <button onClick={() => setPalette(true)} aria-label="Search and commands"
+            className="mx-3 mb-2 flex h-8 items-center gap-2 rounded-md border border-line bg-panel px-2.5 text-[13px] text-faint shadow-(--shadow-card) transition-colors hover:text-muted">
+            <Search className="size-3.5" aria-hidden />Search
+            <span className="ml-auto"><Kbd>{mac ? "⌘K" : "Ctrl K"}</Kbd></span>
+          </button>
           <nav className="flex-1 space-y-5 overflow-y-auto px-3 pt-2" aria-label="Primary">
             {NAV.map((g) => (
               <div key={g.group}>
@@ -113,6 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex h-12 items-center justify-between px-4">
             <Link href="/" aria-label="AlgoForge home" className="flex items-center gap-2 text-[15px] font-semibold"><LogoMark size={22} />AlgoForge</Link>
             <div className="flex items-center gap-2">
+              <button onClick={() => setPalette(true)} className="grid size-8 place-items-center rounded-md text-faint hover:bg-panel-2 hover:text-fg" aria-label="Search and commands"><Search className="size-4" aria-hidden /></button>
               <Segmented label="Theme" value={theme.pref} onChange={theme.setPref} options={THEME_OPTIONS} />
               <button onClick={logout} className="grid size-8 place-items-center rounded-md text-faint hover:bg-panel-2 hover:text-fg" aria-label="Sign out"><LogOut className="size-4" aria-hidden /></button>
             </div>
@@ -130,6 +154,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="h-full overflow-auto bg-panel md:rounded-lg md:border md:border-line md:shadow-(--shadow-card)">{children}</div>
         </main>
       </div>
+      {palette && <CommandPalette onClose={() => setPalette(false)} onSignOut={logout} />}
     </MeContext.Provider>
   );
 }

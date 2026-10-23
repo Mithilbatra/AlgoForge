@@ -122,7 +122,7 @@ Without any key, every deterministic part still works: judging, generated tests 
 
 ## Tests
 
-Backend (93 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
+Backend (94 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
 
 ```bash
 cd backend && mvn test
@@ -220,6 +220,8 @@ The interface follows one written standard, so every screen looks like part of t
 - **Light and dark.** The theme follows the system by default and can be pinned to light or dark from the sidebar or Settings. An inline script applies it before the first paint, so pages never flash the wrong theme.
 - **One accent, used sparingly.** Forge orange marks focus, the active page, links and progress. Primary buttons are neutral (near-black in light, near-white in dark). The only gradient is the logo mark.
 - **Type and spacing.** Geist for text, Geist Mono for code and figures; a fixed scale (12, 13, 14, 16, 20, 24 px) on a 4 px spacing grid. Controls use a 6 px radius, cards 8 px, with hairline borders instead of shadows and glows.
+- **Motion with a purpose.** Content enters with a short fade-and-rise, numbers count up, bars and rings grow from zero, the judge shows live Queued, Compiling and Running steps, an accepted verdict draws its check mark, coach replies type themselves out, the learning map's prerequisite edges flow toward the selected concept, and the theme switch spreads out in a circle from the control. Everything stops for reduced motion.
+- **Keyboard first.** ⌘K / Ctrl+K opens a command palette: jump to any page, search problems by title, open a random unsolved problem, switch theme or sign out.
 - **Shared components.** `frontend/src/components/ui.tsx` holds the building blocks every page uses: `Page`, `PageHeader`, `Card`, `Button`, `Badge` (with semantic tones), `Segmented`, `TabBar`, `StatStrip`, form fields and empty, loading and error states.
 
 ### Brand
