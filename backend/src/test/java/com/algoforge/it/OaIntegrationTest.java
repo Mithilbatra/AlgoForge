@@ -115,4 +115,11 @@ class OaIntegrationTest extends IntegrationTest {
         assertThat(inst.get("problems")).extracting(p -> p.get("difficulty").asText()).containsExactly("EASY", "MEDIUM", "HARD");
         assertThat(inst.get("isTemplate").asBoolean()).isFalse();
     }
+
+    @Test
+    void unknownAssessmentsAreNotFound() throws Exception {
+        Cookie s = register("missing");
+        mvc.perform(jsonPost("/api/oa/definitions/999999999/start", s, Map.of())).andExpect(status().isNotFound());
+        mvc.perform(jsonPost("/api/oa/templates/999999999/instantiate", s, Map.of())).andExpect(status().isNotFound());
+    }
 }

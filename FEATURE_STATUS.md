@@ -8,7 +8,7 @@ What each label means:
 - **Unconfigured**: implemented, but not exercised live because credentials were unavailable.
 - **Not implemented**: deliberately left out.
 
-Last full run: 90 backend tests (3 opt-in live tests skipped without keys) and 7 Playwright journeys against a production build of the web app with a local API and worker.
+Last full run: 93 backend tests (3 opt-in live tests skipped without keys) and 7 Playwright journeys against a production build of the web app with a local API and worker.
 
 ## Status by area
 

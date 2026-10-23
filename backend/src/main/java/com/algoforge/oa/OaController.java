@@ -71,7 +71,7 @@ public class OaController {
                 .query((rs, i) -> new Definition(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getBoolean(4), rs.getInt(5),
                         rs.getString(6), rs.getBoolean(7), rs.getInt(8), List.of((String[]) rs.getArray(9).getArray()), rs.getBoolean(10),
                         probs, readJson(rs.getString(11))))
-                .single();
+                .optional().orElseThrow(() -> ApiException.notFound("Assessment"));
     }
 
     public record ProblemPick(@NotNull Long problemId, @Min(1) @Max(1000) int points) {}

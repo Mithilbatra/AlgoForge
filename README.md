@@ -121,7 +121,7 @@ Without any key, every deterministic part still works: judging, generated tests 
 
 ## Tests
 
-Backend (90 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
+Backend (93 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
 
 ```bash
 cd backend && mvn test

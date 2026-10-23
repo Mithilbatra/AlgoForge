@@ -115,7 +115,7 @@ export default function DashboardPage() {
       )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile label="Problems solved" value={solved.data?.total ?? "–"} icon={<CheckCircle2 className="h-4 w-4" aria-hidden />} accent="text-ok" sub="Judged here and accepted" />
+        <StatTile label="Problems solved" value={solved.data?.total ?? "–"} icon={<CheckCircle2 className="h-4 w-4" aria-hidden />} accent="text-ok" sub="Judged or marked solved" />
         <StatTile label="Judged this week" value={week?.judged ?? 0} icon={<Gauge className="h-4 w-4" aria-hidden />} accent="text-info" sub={week ? `${week.accepted} accepted` : "No submissions yet"} />
         <StatTile label="Acceptance this week" value={week ? `${Math.round(week.acceptRate)}%` : "–"} icon={<TrendingUp className="h-4 w-4" aria-hidden />} sub="Of judged submissions" />
         <StatTile label="Assessments" value={data.timeInsights.assessments} icon={<Medal className="h-4 w-4" aria-hidden />} accent="text-gold"

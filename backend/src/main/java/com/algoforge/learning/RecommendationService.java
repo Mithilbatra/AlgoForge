@@ -120,10 +120,11 @@ public class RecommendationService {
     /** Follow-up practice for a set of concepts (used by the post-assessment report). */
     public List<Candidate> followUps(long userId, Collection<String> concepts, Set<Long> exclude, int limit) {
         Map<Long, Problem> problems = problems(userId);
+        List<ProblemConcept> pcs = problemConcepts(userId);
         List<Candidate> out = new ArrayList<>();
         Set<Long> used = new HashSet<>(exclude);
         for (String concept : concepts) {
-            problemConcepts(userId).stream()
+            pcs.stream()
                     .filter(pc -> pc.conceptCode().equals(concept) && !used.contains(pc.problemId())
                             && !"SOLVED".equals(problems.get(pc.problemId()).status()))
                     .min((a, b) -> Integer.compare(a.tier(), b.tier()))

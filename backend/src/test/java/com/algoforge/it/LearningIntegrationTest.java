@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.algoforge.learning.LearningService;
 import com.algoforge.learning.RecommendationService;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +42,20 @@ class LearningIntegrationTest extends IntegrationTest {
         assertThat(next.problemId()).isEqualTo(problemId("Bakery Ovens"));
         assertThat(next.reason()).doesNotContainIgnoringCase("binary").doesNotContain("Courier Capacity");
         assertThat(next.conceptCode()).isNull();
+    }
+
+    @Test
+    void followUpsPickOneOpenProblemPerConcept() throws Exception {
+        long uid = userId(register("follow"));
+        var picks = recommendations.followUps(uid, List.of("dp", "prefix-sums"), Set.of(), 4);
+        assertThat(picks).extracting(RecommendationService.Candidate::conceptCode).containsExactly("dp", "prefix-sums");
+        assertThat(picks).extracting(RecommendationService.Candidate::problemId).doesNotHaveDuplicates();
+    }
+
+    @Test
+    void evidenceLookupBySubmissionIsIndexed() {
+        assertThat(jdbc.sql("select count(*) from pg_indexes where tablename = 'learning_events' and indexdef like '%(submission_id)'")
+                .query(Long.class).single()).isEqualTo(1);
     }
 
     @Test
