@@ -22,6 +22,7 @@ export interface ProblemDetail {
   concepts: { code: string; name: string; tier: number }[]; samples: { input: string; output: string }[];
   hints?: string[]; assessmentLocked: boolean; editorialAvailable: boolean; judgeable: boolean; officialTests: number;
   capabilities: Capabilities; state: { status: string; notes?: string; personalDifficulty?: number }; owned: boolean;
+  twinId?: number; twinOfId?: number; twinOfTitle?: string;
 }
 
 export interface SourceInfo {

@@ -9,8 +9,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * A Python sandbox holding a problem's trusted generator, input validator and reference solution.
- * These are author-written; AI output only ever reaches it as input data, never as code.
+ * A Python sandbox holding a problem's generator, input validator and reference solution. These are author-written,
+ * except for original twins, whose AI-written code is only trusted after TwinService cross-checks it here against an
+ * independent brute force. It runs in the same locked-down sandbox as submissions either way.
  */
 public final class Oracle implements AutoCloseable {
     private static final int GEN_FILE_LIMIT_KB = 16 * 1024;

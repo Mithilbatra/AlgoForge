@@ -80,6 +80,17 @@ class AiServiceIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void twinsFallBackToTheNextProviderWhenOneRefuses() throws Exception {
+        long uid = userId(register("fallback"));
+        var broke = new Scripted(first(), new AiException(AiException.Kind.FATAL, "HTTP 400: credit balance is too low"));
+        var backup = new Scripted(second(), "{\"title\": \"missing the rest\"}");
+        var call = service(false, 20, broke, backup).twin(uid, "twin " + System.nanoTime()).orElseThrow();
+        assertThat(call.provider()).isEqualTo(second());
+        assertThat(call.status()).isEqualTo("INVALID_OUTPUT");  // the second provider answered, so its result is reported
+        assertThat(broke.calls.get()).isEqualTo(1);
+    }
+
+    @Test
     void transientFailuresAreRetriedOnceThenReported() throws Exception {
         long uid = userId(register("retry"));
         var flaky = new Scripted(first(), new AiException(AiException.Kind.RETRYABLE, "HTTP 529"), REVIEW);

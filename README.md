@@ -17,7 +17,7 @@
 
 AlgoForge is a platform for competitive programming practice and coding-assessment preparation. It has six parts:
 
-- **Problem Hub**: original problems that are judged locally, plus problems from other platforms that are linked or synced, with deduplication and an honest per-platform capability panel.
+- **Problem Hub**: original problems that are judged locally, plus problems from other platforms that are linked or synced, with deduplication and an honest per-platform capability panel. For a linked problem you can ask for an **original twin**: a new problem on the same technique, written by AI and judged here (see [Original twins](#original-twins)).
 - **Practice Lab**: Monaco editor, runs on the samples or custom input, judged submissions with per-test verdicts, real time and memory measurements, hints, notes and an editorial.
 - **Code evaluation**: every verdict comes from compiling and running the code in a Docker sandbox. A transparent, weighted report combines that execution evidence with static analysis. On request, a deep evaluation runs seeded random and AI-proposed inputs through an input validator and a trusted reference solution, keeps the smallest failing case, benchmarks accepted code, and asks the configured AI providers for a review. Disagreements are settled only by evidence.
 - **OA Arena**: timed assessments built from templates or by hand, with server-side timing, deterministic scoring (partial credit and penalties), hidden test data during the run, and a post-assessment report with time per problem, a submission timeline, insights and follow-up problems.
@@ -122,7 +122,7 @@ Without any key, every deterministic part still works: judging, generated tests 
 
 ## Tests
 
-Backend (94 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
+Backend (99 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
 
 ```bash
 cd backend && mvn test
@@ -193,8 +193,21 @@ Fork bombs, memory bombs, output floods, orphaned processes and network access w
 | LeetCode, CodeChef, AtCoder, CSES, HackerRank | Link only | URL parsing to platform IDs, canonical links, dedupe, notes and status. Nothing is scraped |
 | Any other site | Link only | Normalised URL, notes and status |
 | Your own problems | `POST /api/problems` | Private original problems with author tests |
+| Original twins | AI-written, sandbox-verified | A private problem on the same technique as a linked one, judged locally |
 
 Each adapter declares its capabilities (discovery, metadata sync, statements, examples, links, verdict sync, judging, ratings and tags). The Problem Hub shows exactly what each source supports.
+
+### Original twins
+
+AlgoForge does not copy statements from other sites, and renaming the nouns in someone else's problem would still copy it. Instead, a linked problem's page offers to create an original twin (`POST /api/problems/{id}/twin`, 5 per hour):
+
+1. The worker sends the AI only the problem's concepts, tags and difficulty, never its title, link or text. The AI writes a new problem: statement, constraints, samples, hints, an editorial, a reference solution, an independent brute force and a seeded input generator.
+2. All of that code runs only in the Python sandbox. The reference and the brute force must agree on the samples and on 15 random small inputs, and the reference must finish within the time limit at full size.
+3. If a check fails, the failure goes back to the AI once for a corrected problem. If the second attempt also fails, the job reports why and nothing is saved.
+   If a provider fails outright (down, or out of credit), the next configured provider is tried. A twin usually takes 2 to 5 minutes, mostly the AI's thinking, so the worker allows AI calls up to 600 s.
+4. A verified twin is saved as your private original problem with its samples and 9 hidden tests. It is linked both ways to the source problem and keeps the source's concepts, so solving it counts as learning evidence.
+
+The checks catch a wrong reference only when the brute force gets it right; both come from the same model, so a twin is less certain than a hand-checked original. Its page marks it as AI-written.
 
 ## Adding an original problem
 

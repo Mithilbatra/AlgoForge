@@ -4,6 +4,7 @@ import com.algoforge.AppProperties;
 import com.algoforge.ai.AiOutputs.CoachReply;
 import com.algoforge.ai.AiOutputs.Review;
 import com.algoforge.ai.AiOutputs.TestProposal;
+import com.algoforge.ai.AiOutputs.Twin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -83,6 +84,20 @@ public class AiService {
     public Optional<Call<List<TestProposal>>> proposeTests(long userId, String userPrompt) {
         return available("TESTGEN").stream().findFirst().map(p ->
                 call(p, "testgen", userId, Prompts.TESTGEN_SYSTEM, userPrompt, Prompts.TESTGEN_SCHEMA, AiOutputs::tests));
+    }
+
+    /** Thinking counts against the output limit, and a twin needs a lot of both (Gemini used 13k thinking tokens for a 3k reply). */
+    static final int TWIN_OUTPUT_TOKENS = 32000;
+
+    /** Falls through to the next provider when one is down or refuses (out of credit, bad key): a twin is a single request worth finishing. */
+    public Optional<Call<Twin>> twin(long userId, String userPrompt) {
+        Call<Twin> last = null;
+        for (ProviderStatus s : available("TESTGEN")) {
+            var p = new ProviderStatus(s.provider(), s.enabled(), s.configured(), s.model(), s.roles(), Math.max(s.maxOutputTokens(), TWIN_OUTPUT_TOKENS));
+            last = call(p, "twin", userId, Prompts.TWIN_SYSTEM, userPrompt, Prompts.TWIN_SCHEMA, AiOutputs::twin);
+            if (!"ERROR".equals(last.status()) && !"TIMEOUT".equals(last.status())) break;
+        }
+        return Optional.ofNullable(last);
     }
 
     public Optional<Call<CoachReply>> coach(long userId, String userPrompt) {

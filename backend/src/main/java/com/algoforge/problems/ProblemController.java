@@ -56,9 +56,10 @@ public class ProblemController {
     private final RateLimiter limiter;
     private final Audit audit;
     private final ObjectMapper json;
+    private final TwinService twins;
 
     public ProblemController(JdbcClient jdbc, ProblemService problems, SourceRegistry sources, SourceSyncService sync,
-                             RateLimiter limiter, Audit audit, ObjectMapper json) {
+                             RateLimiter limiter, Audit audit, ObjectMapper json, TwinService twins) {
         this.jdbc = jdbc;
         this.problems = problems;
         this.sources = sources;
@@ -66,6 +67,7 @@ public class ProblemController {
         this.limiter = limiter;
         this.audit = audit;
         this.json = json;
+        this.twins = twins;
     }
 
     // ---- catalogue ----------------------------------------------------------------------------------------------
@@ -143,7 +145,8 @@ public class ProblemController {
                                 Integer sourceRating, Integer estMinutes, int timeLimitMs, int memoryLimitMb,
                                 List<String> tags, boolean tagsHidden, List<ConceptRef> concepts, List<Sample> samples,
                                 List<String> hints, boolean assessmentLocked, boolean editorialAvailable,
-                                boolean judgeable, int officialTests, Capabilities capabilities, UserState state, boolean owned) {}
+                                boolean judgeable, int officialTests, Capabilities capabilities, UserState state, boolean owned,
+                                Long twinId, Long twinOfId, String twinOfTitle) {}
 
     @GetMapping("/api/problems/{id}")
     public ProblemDetail detail(@PathVariable long id, Authentication auth) {
@@ -156,7 +159,9 @@ public class ProblemController {
                        %s as tags, (exists (select 1 from problem_concepts pc where pc.problem_id = p.id and pc.tier = 3)
                             and coalesce(ups.status, 'UNSEEN') <> 'SOLVED') as tags_hidden,
                        (select count(*) from test_cases tc where tc.problem_id = p.id and tc.kind = 'OFFICIAL' and tc.seed is null)
-                         + jsonb_array_length(p.generated_specs) as official
+                         + jsonb_array_length(p.generated_specs) as official,
+                       (select t.id from problems t where t.twin_of = p.id and t.owner_id = :uid) as twin_id,
+                       (select o.title from problems o where o.id = p.twin_of) as twin_of_title
                   from problems p join problem_sources s on s.code = p.source
                   left join user_problem_state ups on ups.problem_id = p.id and ups.user_id = :uid
                  where p.id = :id""".formatted(VISIBLE_TAGS))
@@ -195,7 +200,16 @@ public class ProblemController {
                 hideTags ? List.of() : strings(rs.getArray("tags")), hideTags, concepts, samples,
                 locked ? null : hints, locked, !solutionsLocked && rs.getString("editorial_md") != null,
                 problems.judgeable(id), rs.getInt("official"), caps,
-                new UserState(rs.getString("status"), rs.getString("notes"), pd), rs.getObject("owner_id") != null);
+                new UserState(rs.getString("status"), rs.getString("notes"), pd), rs.getObject("owner_id") != null,
+                (Long) rs.getObject("twin_id"), (Long) rs.getObject("twin_of"), rs.getString("twin_of_title"));
+    }
+
+    /** Queues an original twin of a linked problem (see TwinService); returns {jobId}, or {problemId} when one exists. */
+    @PostMapping("/api/problems/{id}/twin")
+    public Map<String, Object> twin(@PathVariable long id, @Valid @RequestBody TwinService.Request body, Authentication auth) {
+        long uid = CurrentUser.id(auth);
+        limiter.check("twin:" + uid, 5, Duration.ofHours(1));
+        return twins.request(uid, id, body);
     }
 
     public record Editorial(String editorialMd, String referenceLanguage, String referenceSolution) {}

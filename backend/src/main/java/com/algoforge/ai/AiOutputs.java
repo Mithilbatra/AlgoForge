@@ -23,6 +23,9 @@ public final class AiOutputs {
 
     public record CoachReply(String reply, String nextStep) {}
 
+    public record Twin(String title, String statementMd, String constraintsMd, String referencePy, String brutePy,
+                       String generatorPy, List<String> samples, List<String> hints, String editorialMd, int maxN) {}
+
     public static class InvalidOutput extends Exception {
         public InvalidOutput(String message) { super(message); }
     }
@@ -64,6 +67,35 @@ public final class AiOutputs {
         }
         m.appendTail(out);
         return out.toString();
+    }
+
+    /** A generated twin problem. Its code is only ever run in the sandbox, and only saved after it passes verification. */
+    public static Twin twin(JsonNode n) throws InvalidOutput {
+        String title = str(n, "title", 120).strip();
+        if (title.isEmpty()) throw new InvalidOutput("empty title");
+        JsonNode maxN = n.get("max_n");
+        if (maxN == null || !maxN.canConvertToInt() || maxN.asInt() < 1) throw new InvalidOutput("max_n must be a positive integer");
+        List<String> samples = strings(n, "samples", 3, 2000).stream().filter(x -> !x.isBlank()).map(x -> x.endsWith("\n") ? x : x + "\n").toList();
+        return new Twin(title, str(n, "statement_md", 8000), str(n, "constraints_md", 500), code(n, "reference_py"), code(n, "brute_py"),
+                code(n, "generator_py"), samples, strings(n, "hints", 3, 500), str(n, "editorial_md", 6000), Math.min(maxN.asInt(), 200_000));
+    }
+
+    private static String code(JsonNode n, String field) throws InvalidOutput {
+        String s = str(n, field, 12000);
+        if (s.isBlank()) throw new InvalidOutput("empty " + field);
+        return s;
+    }
+
+    private static List<String> strings(JsonNode n, String field, int maxItems, int maxLen) throws InvalidOutput {
+        JsonNode v = n.get(field);
+        if (v == null || !v.isArray()) throw new InvalidOutput("missing array field " + field);
+        List<String> out = new ArrayList<>();
+        for (int i = 0; i < Math.min(maxItems, v.size()); i++) {
+            if (!v.get(i).isTextual()) throw new InvalidOutput(field + " items must be strings");
+            String s = v.get(i).asText();
+            out.add(s.length() > maxLen ? s.substring(0, maxLen) : s);
+        }
+        return out;
     }
 
     public static List<TestProposal> tests(JsonNode n) throws InvalidOutput {

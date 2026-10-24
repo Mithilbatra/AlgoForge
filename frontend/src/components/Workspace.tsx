@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { ArrowRight, BookOpen, Bot, Check, Copy, ExternalLink, EyeOff, History as HistoryIcon, Lightbulb, Play, StickyNote, TerminalSquare } from "lucide-react";
+import { ArrowRight, BookOpen, Bot, Check, Copy, ExternalLink, EyeOff, History as HistoryIcon, Lightbulb, Play, Sparkles, StickyNote, TerminalSquare } from "lucide-react";
 import { errorMessage, get, poll, post, put } from "@/lib/api";
 import { draftKey, loadDraft, saveDraft, TEMPLATES } from "@/lib/drafts";
 import { difficultyTone, LANGUAGE_LABEL, relativeTime, STATUS_LABEL } from "@/lib/format";
-import type { Job, Language, ProblemDetail, RunResult, SubmissionDetail, SubmissionSummary } from "@/lib/types";
+import type { ConceptMastery, Job, Language, ProblemDetail, RunResult, SubmissionDetail, SubmissionSummary } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 import { Coach } from "./Coach";
 import { CodeEditor } from "./CodeEditor";
 import { Markdown } from "./Markdown";
 import { RunView, SubmissionView } from "./Results";
-import { Badge, Button, cx, ErrorNote, Input, Kbd, Select, Spinner, TabBar, Textarea, Verdict } from "./ui";
+import { Badge, Button, ButtonLink, Callout, cx, ErrorNote, Input, Kbd, Select, Spinner, TabBar, Textarea, Verdict } from "./ui";
 
 const NARROW = "(max-width: 767px)";
 function useNarrow() {
@@ -256,12 +257,19 @@ function Statement({ p }: { p: ProblemDetail }) {
         {p.tagsHidden && !p.assessmentLocked && <Badge tone="violet" title="This problem tests whether you recognise the technique without being told."><EyeOff aria-hidden />topic hidden until solved</Badge>}
         {p.assessmentLocked && <Badge tone="warn">assessment: hints and topics hidden</Badge>}
       </div>
+      {p.twinOfId && (
+        <div className="mt-4"><Callout tone="accent" icon={<Sparkles />}>
+          An original twin of <Link className="font-medium text-fg hover:underline" href={`/problems/${p.twinOfId}`}>{p.twinOfTitle}</Link>: the same technique in a new, AI-written problem.
+          Its hidden tests come from a reference solution that was cross-checked against a brute force here.
+        </Callout></div>
+      )}
       {p.statementMd ? <div className="mt-6"><Markdown>{p.statementMd}</Markdown></div> : (
         <div className="mt-6 space-y-3 rounded-lg border border-line bg-panel-2/50 p-4 text-sm">
           <p className="text-fg">The statement for this problem lives on {p.sourceName}; AlgoForge stores only the link, metadata and your notes.</p>
           {p.canonicalUrl && <a className="inline-flex items-center gap-1 font-medium text-accent hover:underline" href={p.canonicalUrl} target="_blank" rel="noopener noreferrer">Open on {p.sourceName}<ExternalLink className="size-3.5" aria-hidden /></a>}
           <p className="text-muted">{p.capabilities.notes}</p>
           <p className="text-muted">You can still run code here against your own input, and Forge Coach can help. Submit on {p.sourceName} for an official verdict, then record the outcome under Notes.</p>
+          {!p.assessmentLocked && <TwinCard p={p} />}
         </div>
       )}
       {p.constraintsMd && (
@@ -282,6 +290,80 @@ function Statement({ p }: { p: ProblemDetail }) {
         {p.judgeable && <p>Judged on {p.samples.length} samples and {p.officialTests} hidden tests.</p>}
       </div>
     </article>
+  );
+}
+
+/** Asks for an original twin: a new problem on the same technique, written by the AI and verified in the sandbox. */
+function TwinCard({ p }: { p: ProblemDetail }) {
+  const router = useRouter();
+  const needsConcept = p.concepts.length === 0;
+  const concepts = useApi<ConceptMastery[]>(needsConcept && !p.twinId ? "/api/learning/concepts" : null);
+  const [concept, setConcept] = useState("");
+  const [job, setJob] = useState<Job | "starting">();
+  const [error, setError] = useState<string>();
+  const alive = useRef<AbortController>(null);
+  useEffect(() => () => alive.current?.abort(), []);
+
+  if (p.twinId) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+        <p className="text-muted">You have an original twin of this problem, judged here.</p>
+        <ButtonLink href={`/problems/${p.twinId}`} size="sm" variant="primary"><Sparkles className="size-3.5" aria-hidden />Open your twin</ButtonLink>
+      </div>
+    );
+  }
+
+  async function create() {
+    alive.current = new AbortController();
+    setError(undefined);
+    setJob("starting");
+    try {
+      const r = await post<{ jobId?: number; problemId?: number }>(`/api/problems/${p.id}/twin`, needsConcept ? { concept } : {});
+      let id = r.problemId;
+      if (!id) {
+        const done = await poll(() => get<Job<{ problemId: number }>>(`/api/jobs/${r.jobId}`), (j) => {
+          setJob(j);
+          return j.status === "DONE" || j.status === "FAILED";
+        }, alive.current.signal, 1500);
+        if (done.status === "FAILED") throw new Error(done.error ?? "Couldn't make a twin");
+        id = done.result?.problemId;
+      }
+      if (id && !alive.current.signal.aborted) router.push(`/problems/${id}`);
+    } catch (e) {
+      setError(errorMessage(e));
+      setJob(undefined);
+    }
+  }
+
+  const working = job !== undefined;
+  const step = job === "starting" || job?.status === "QUEUED"
+    ? `Waiting for the worker${job !== "starting" && job?.queuePosition ? ` (${job.queuePosition} ahead)` : ""}…`
+    : "Writing a new problem, then checking its solution against a brute force on random inputs. This can take several minutes; you can leave this page and come back.";
+  return (
+    <div className="space-y-3 border-t border-line pt-3">
+      <div className="flex items-start gap-2.5">
+        <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+        <p className="text-muted"><span className="font-medium text-fg">Practise it here instead.</span> An original twin is a new problem that tests the same
+          technique: its own story, wording and examples, written by AI and judged here like an AlgoForge original. Only its topics are shared with the AI, never this problem&apos;s text.</p>
+      </div>
+      {working ? (
+        <div role="status" aria-live="polite">
+          <p className="text-xs text-muted">{step}</p>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-panel-3" aria-hidden><div className="progress-indeterminate h-full w-2/5 rounded-full bg-accent/70" /></div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          {needsConcept && (
+            <Select aria-label="Technique for the twin" value={concept} onChange={(e) => setConcept(e.target.value)} className="w-56">
+              <option value="">Pick the technique…</option>
+              {concepts.data?.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+            </Select>
+          )}
+          <Button size="sm" variant="primary" onClick={create} disabled={needsConcept && !concept}><Sparkles className="size-3.5" aria-hidden />Create an original twin</Button>
+        </div>
+      )}
+      {error && <ErrorNote message={error} onRetry={needsConcept && !concept ? undefined : create} />}
+    </div>
   );
 }
 

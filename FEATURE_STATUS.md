@@ -19,6 +19,7 @@ Last full run: 94 backend tests (3 opt-in live tests skipped without keys) and 8
 | Problem Hub | Filters (text, source, difficulty, tag, status, rating, estimated time, judgeable), pagination | Tested, verified | `catalogueFiltersAndHidesDisguisedTechniqueTags`, browser |
 | Problem Hub | Codeforces catalogue sync (official API), background job with status | Verified live | 11,452 problems synced in about 12 s; opt-in `LiveIntegrationTest` |
 | Problem Hub | Link-only adapters (LeetCode, CodeChef, AtCoder, CSES, HackerRank), dedupe by platform ID and canonical URL | Tested | `SourceAdaptersTest`, `manualLinksDeduplicateAndStayPrivate` |
+| Problem Hub | Original twins of linked problems: AI-written from the topics only, reference cross-checked against a brute force in the sandbox, then judged locally | Tested, verified live | `TwinIntegrationTest` (scripted AI, real sandbox), `AiOutputsTest`; live with Gemini: a prefix-sums twin of a LeetCode link in 112 s, its reference accepted on 11 of 11 tests |
 | Problem Hub | User-authored private problems with author tests | Partial | API only (`POST /api/problems`); no authoring UI; no reference solution, so their generated tests stay unverified |
 | Practice Lab | Monaco editor, language switch, autosaved drafts, shortcuts (Cmd/Ctrl+Enter, +Shift to submit), resizable panels | Verified | Browser, e2e |
 | Practice Lab | Sample runs, custom input, submission history, restoring past code | Tested, verified | e2e practice journey |
@@ -53,7 +54,8 @@ Last full run: 94 backend tests (3 opt-in live tests skipped without keys) and 8
 - **The benchmark only measures growth on the worker it runs on.** Fast solutions are often "inconclusive" (runs under the 20 ms noise floor), and there is no cross-language reference baseline.
 - **No verdict sync from external platforms.** Codeforces `user.status` could provide it later.
 - **No company tags.** No legitimately sourced data exists for them.
-- **No statement import for external problems.** The APIs used don't provide statements, and AlgoForge does not scrape.
+- **No statement import for external problems.** The APIs used don't provide statements, and AlgoForge does not scrape. Original twins are the alternative: new problems on the same technique.
+- **Original twins are only as sure as two AI-written programs.** The reference and the brute force come from the same model, so a shared misreading of the statement passes the cross-check. Twins have no input validator, and there is no way to edit or delete one yet.
 - **Drafts are per browser.** They live in `localStorage`, so autosave does not follow you across devices, and signing out deletes them.
 - **Rate limits are kept in memory per API instance.** Move them to Redis or PostgreSQL before running several API instances. Sessions are already shared.
 - **Monaco loads from the jsDelivr CDN.** Host it yourself for offline or strict-CSP deployments.

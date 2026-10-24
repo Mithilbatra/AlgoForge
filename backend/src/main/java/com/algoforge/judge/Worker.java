@@ -3,6 +3,7 @@ package com.algoforge.judge;
 import com.algoforge.AppProperties;
 import com.algoforge.eval.EvaluationService;
 import com.algoforge.judge.JobQueue.Job;
+import com.algoforge.problems.TwinService;
 import jakarta.annotation.PreDestroy;
 import java.lang.management.ManagementFactory;
 import java.util.List;
@@ -27,6 +28,7 @@ public class Worker implements ApplicationRunner {
     private final JobQueue queue;
     private final JudgeService judge;
     private final EvaluationService evaluations;
+    private final TwinService twins;
     private final AppProperties.Worker cfg;
     private final AppProperties.Sandbox sandbox;
     private final String workerId = ManagementFactory.getRuntimeMXBean().getName();
@@ -34,10 +36,11 @@ public class Worker implements ApplicationRunner {
     private final ScheduledExecutorService housekeeping = Executors.newSingleThreadScheduledExecutor();
     private volatile boolean stopping;
 
-    public Worker(JobQueue queue, JudgeService judge, EvaluationService evaluations, AppProperties props) {
+    public Worker(JobQueue queue, JudgeService judge, EvaluationService evaluations, TwinService twins, AppProperties props) {
         this.queue = queue;
         this.judge = judge;
         this.evaluations = evaluations;
+        this.twins = twins;
         this.cfg = props.worker();
         this.sandbox = props.sandbox();
     }
@@ -83,12 +86,14 @@ public class Worker implements ApplicationRunner {
                 case "JUDGE" -> { judge.judge(job); yield null; }
                 case "RUN" -> judge.run(job);
                 case "EVALUATE" -> { evaluations.deepEvaluate(job); yield null; }
+                case "TWIN" -> twins.build(job);
                 default -> throw new IllegalStateException("unknown job type " + job.type());
             };
             queue.complete(job.id(), result);
         } catch (Exception e) {
             log.error("Job {} ({}) failed", job.id(), job.type(), e);
-            String msg = e instanceof SandboxException ? "Execution environment error: " + e.getMessage() : "Internal error while processing";
+            String msg = e instanceof SandboxException ? "Execution environment error: " + e.getMessage()
+                    : e instanceof TwinService.TwinFailed ? e.getMessage() : "Internal error while processing";
             queue.fail(job.id(), msg);
             if ("JUDGE".equals(job.type()) && job.submissionId() != null) judge.markInternalError(job.submissionId(), msg);
             if ("EVALUATE".equals(job.type()) && job.submissionId() != null) evaluations.markDeepFailed(job.submissionId(), msg);

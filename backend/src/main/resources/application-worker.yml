@@ -1,3 +1,8 @@
 # The worker shares the codebase and database but serves no HTTP traffic and never handles user sessions.
 spring:
   main.web-application-type: none
+
+# Nothing waits on the worker's AI calls, and an original twin is a long reply (statement, three programs, editorial)
+# after long thinking (over 5 minutes measured on Gemini), so they get more time than the API's interactive calls,
+# which must finish within the web proxy's 150 s.
+algoforge.ai.timeout-seconds: 600
