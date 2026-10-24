@@ -61,5 +61,5 @@ Last full run: 94 backend tests (3 opt-in live tests skipped without keys) and 8
 - **Monaco loads from the jsDelivr CDN.** Host it yourself for offline or strict-CSP deployments.
 - **Seed problems are insert-only.** Changing a shipped problem needs a migration.
 - **Account management is minimal.** There is no email verification, password reset, admin UI for models, or authoring UI for private problems.
-- **The Next.js proxy waits at most 150 s** (raised from 30 s for Forge Coach's AI calls). Sync and deep evaluation are asynchronous; keep any new long operation asynchronous too.
+- **The Next.js proxy waits at most 150 s** (raised from 30 s for Forge Coach's AI calls), so the API gives each AI call 70 s and retries a timeout once. A slower provider gets the built-in coach's answer instead. Sync, deep evaluation and twins are asynchronous; keep any new long operation asynchronous too.
 - **Deployment trust assumptions:** the worker needs the Docker socket, so run it on a dedicated host, preferably with `SANDBOX_RUNTIME=runsc`. The web app must sit behind a reverse proxy that sets `X-Forwarded-For` (see the README's security model).

@@ -80,14 +80,30 @@ class AiServiceIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    void twinsFallBackToTheNextProviderWhenOneRefuses() throws Exception {
+    void aRefusingProviderFallsThroughToTheNextOne() throws Exception {
         long uid = userId(register("fallback"));
-        var broke = new Scripted(first(), new AiException(AiException.Kind.FATAL, "HTTP 400: credit balance is too low"));
-        var backup = new Scripted(second(), "{\"title\": \"missing the rest\"}");
-        var call = service(false, 20, broke, backup).twin(uid, "twin " + System.nanoTime()).orElseThrow();
-        assertThat(call.provider()).isEqualTo(second());
-        assertThat(call.status()).isEqualTo("INVALID_OUTPUT");  // the second provider answered, so its result is reported
-        assertThat(broke.calls.get()).isEqualTo(1);
+        var refusal = new AiException(AiException.Kind.FATAL, "HTTP 400: credit balance is too low");
+        var broke = new Scripted(first(), refusal, refusal, refusal);
+        var backup = new Scripted(second(), "{\"reply\": \"A stack keeps the open brackets.\", \"next_step\": \"Push and pop.\"}",
+                REVIEW, "{\"title\": \"missing the rest\"}");
+        var svc = service(false, 20, broke, backup);
+
+        var coach = svc.coach(uid, "coach " + System.nanoTime()).orElseThrow();
+        assertThat(coach.provider()).isEqualTo(second());
+        assertThat(coach.value().reply()).contains("stack");
+        assertThat(svc.review(uid, "review " + System.nanoTime())).singleElement()
+                .satisfies(c -> assertThat(c.provider()).isEqualTo(second()))
+                .satisfies(c -> assertThat(c.status()).isEqualTo("OK"));
+        var twin = svc.twin(uid, "twin " + System.nanoTime()).orElseThrow();
+        assertThat(twin.status()).isEqualTo("INVALID_OUTPUT");  // the second provider answered, so its result is reported
+        assertThat(broke.calls.get()).isEqualTo(3);
+
+        // When every provider fails, the error names each one's reason.
+        var quota = new AiException(AiException.Kind.RETRYABLE, "HTTP 429: daily limit");
+        var none = service(false, 20, new Scripted(first(), refusal), new Scripted(second(), quota, quota))
+                .coach(uid, "none " + System.nanoTime()).orElseThrow();
+        assertThat(none.ok()).isFalse();
+        assertThat(none.error()).isEqualTo(first() + " request failed (out of credit); " + second() + " request failed (rate limit or daily quota reached)");
     }
 
     @Test

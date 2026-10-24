@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -71,38 +72,49 @@ public class AiService {
 
     public boolean anyAvailable(String role) { return !available(role).isEmpty(); }
 
+    /** Dual mode asks every provider in parallel; otherwise the first that answers. */
     public List<Call<Review>> review(long userId, String userPrompt) {
-        List<ProviderStatus> av = available("REVIEW");
-        List<ProviderStatus> targets = cfg.dualMode() ? av : av.stream().limit(1).toList();
+        Function<ProviderStatus, Call<Review>> one = p ->
+                call(p, "review", userId, Prompts.REVIEW_SYSTEM, userPrompt, Prompts.REVIEW_SCHEMA, AiOutputs::review);
+        if (!cfg.dualMode()) return firstAnswer("REVIEW", one).stream().toList();
         try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<CompletableFuture<Call<Review>>> futures = targets.stream().map(p -> CompletableFuture.supplyAsync(() ->
-                    call(p, "review", userId, Prompts.REVIEW_SYSTEM, userPrompt, Prompts.REVIEW_SCHEMA, AiOutputs::review), pool)).toList();
+            List<CompletableFuture<Call<Review>>> futures = available("REVIEW").stream()
+                    .map(p -> CompletableFuture.supplyAsync(() -> one.apply(p), pool)).toList();
             return futures.stream().map(CompletableFuture::join).toList();
         }
     }
 
     public Optional<Call<List<TestProposal>>> proposeTests(long userId, String userPrompt) {
-        return available("TESTGEN").stream().findFirst().map(p ->
-                call(p, "testgen", userId, Prompts.TESTGEN_SYSTEM, userPrompt, Prompts.TESTGEN_SCHEMA, AiOutputs::tests));
+        return firstAnswer("TESTGEN", p -> call(p, "testgen", userId, Prompts.TESTGEN_SYSTEM, userPrompt, Prompts.TESTGEN_SCHEMA, AiOutputs::tests));
     }
 
     /** Thinking counts against the output limit, and a twin needs a lot of both (Gemini used 13k thinking tokens for a 3k reply). */
     static final int TWIN_OUTPUT_TOKENS = 32000;
 
-    /** Falls through to the next provider when one is down or refuses (out of credit, bad key): a twin is a single request worth finishing. */
     public Optional<Call<Twin>> twin(long userId, String userPrompt) {
-        Call<Twin> last = null;
-        for (ProviderStatus s : available("TESTGEN")) {
-            var p = new ProviderStatus(s.provider(), s.enabled(), s.configured(), s.model(), s.roles(), Math.max(s.maxOutputTokens(), TWIN_OUTPUT_TOKENS));
-            last = call(p, "twin", userId, Prompts.TWIN_SYSTEM, userPrompt, Prompts.TWIN_SCHEMA, AiOutputs::twin);
-            if (!"ERROR".equals(last.status()) && !"TIMEOUT".equals(last.status())) break;
-        }
-        return Optional.ofNullable(last);
+        return firstAnswer("TESTGEN", s -> call(
+                new ProviderStatus(s.provider(), s.enabled(), s.configured(), s.model(), s.roles(), Math.max(s.maxOutputTokens(), TWIN_OUTPUT_TOKENS)),
+                "twin", userId, Prompts.TWIN_SYSTEM, userPrompt, Prompts.TWIN_SCHEMA, AiOutputs::twin));
     }
 
     public Optional<Call<CoachReply>> coach(long userId, String userPrompt) {
-        return available("REVIEW").stream().findFirst().map(p ->
-                call(p, "coach", userId, Prompts.COACH_SYSTEM, userPrompt, Prompts.COACH_SCHEMA, AiOutputs::coach));
+        return firstAnswer("REVIEW", p -> call(p, "coach", userId, Prompts.COACH_SYSTEM, userPrompt, Prompts.COACH_SCHEMA, AiOutputs::coach));
+    }
+
+    /**
+     * Tries the role's providers in order until one answers: an outright failure (down, out of credit, bad key) falls
+     * through to the next. Empty when no provider is configured for the role.
+     */
+    private <T> Optional<Call<T>> firstAnswer(String role, Function<ProviderStatus, Call<T>> attempt) {
+        Call<T> last = null;
+        List<String> failures = new ArrayList<>();
+        for (ProviderStatus p : available(role)) {
+            last = attempt.apply(p);
+            if (!"ERROR".equals(last.status()) && !"TIMEOUT".equals(last.status())) return Optional.of(last);
+            failures.add(last.error());
+        }
+        // Every provider failed: report all of them, since each may need a different fix.
+        return Optional.ofNullable(last).map(c -> new Call<>(c.provider(), c.model(), c.status(), null, String.join("; ", failures)));
     }
 
     <T> Call<T> call(ProviderStatus p, String task, long userId, String system, String user, JsonNode schema, Parser<T> parser) {
@@ -161,9 +173,18 @@ public class AiService {
                 };
                 log.warn("AI {} call to {} failed: {}", task, p.provider(), e.getMessage());
                 usage(userId, p, task, status, null, null, ms, e.getMessage());
-                return new Call<>(p.provider(), p.model(), status, null, p.provider() + " request failed (" + status.toLowerCase() + ")");
+                return new Call<>(p.provider(), p.model(), status, null, p.provider() + " request failed (" + reason(e, status) + ")");
             }
         }
+    }
+
+    /** A reason the learner can act on, for the failures that need the account owner rather than a retry. */
+    static String reason(AiException e, String status) {
+        String m = String.valueOf(e.getMessage());
+        if (m.startsWith("HTTP 429")) return "rate limit or daily quota reached";
+        if (m.contains("credit balance")) return "out of credit";
+        if (m.startsWith("HTTP 401") || m.startsWith("HTTP 403")) return "API key rejected";
+        return status.toLowerCase();
     }
 
     private void usage(long userId, ProviderStatus p, String task, String status, Integer in, Integer out, Integer ms, String error) {

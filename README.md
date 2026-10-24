@@ -112,7 +112,7 @@ Scoring weights live in `backend/src/main/resources/application.yml` (`algoforge
 
 ### AI providers
 
-Models are data, not code: they are stored in the `ai_provider_configs` table, one row per provider, with the `REVIEW` and `TESTGEN` roles. Forge Coach uses the first enabled `REVIEW` provider. Change a provider's `model` or set `enabled = false` with SQL, for example:
+Models are data, not code: they are stored in the `ai_provider_configs` table, one row per provider, with the `REVIEW` and `TESTGEN` roles. Providers are tried in name order: Forge Coach, reviews (outside dual mode), test proposals and twins use the first one that answers, so a provider that is down, out of credit or has a bad key falls through to the next. Change a provider's `model` or set `enabled = false` with SQL, for example:
 
 ```bash
 docker compose exec db psql -U algoforge -c "update ai_provider_configs set enabled = false where provider = 'gemini'"
@@ -204,7 +204,7 @@ AlgoForge does not copy statements from other sites, and renaming the nouns in s
 1. The worker sends the AI only the problem's concepts, tags and difficulty, never its title, link or text. The AI writes a new problem: statement, constraints, samples, hints, an editorial, a reference solution, an independent brute force and a seeded input generator.
 2. All of that code runs only in the Python sandbox. The reference and the brute force must agree on the samples and on 15 random small inputs, and the reference must finish within the time limit at full size.
 3. If a check fails, the failure goes back to the AI once for a corrected problem. If the second attempt also fails, the job reports why and nothing is saved.
-   If a provider fails outright (down, or out of credit), the next configured provider is tried. A twin usually takes 2 to 5 minutes, mostly the AI's thinking, so the worker allows AI calls up to 600 s.
+   A twin usually takes 2 to 5 minutes, mostly the AI's thinking, so the worker allows AI calls up to 600 s.
 4. A verified twin is saved as your private original problem with its samples and 9 hidden tests. It is linked both ways to the source problem and keeps the source's concepts, so solving it counts as learning evidence.
 
 The checks catch a wrong reference only when the brute force gets it right; both come from the same model, so a twin is less certain than a hand-checked original. Its page marks it as AI-written.

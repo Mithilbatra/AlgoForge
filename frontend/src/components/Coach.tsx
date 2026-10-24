@@ -35,7 +35,7 @@ function CoachMessage({ reply }: { reply: CoachReply }) {
             )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge>{reply.source === "ai" ? `AI · ${reply.provider}` : "Built-in coach"}</Badge>
-              {reply.notice && <span className="text-xs text-faint">{reply.notice}</span>}
+              {reply.notice && <span className={cx("text-xs", reply.source === "built-in" ? "text-warn" : "text-faint")}>{reply.notice}</span>}
             </div>
           </div>
         )}

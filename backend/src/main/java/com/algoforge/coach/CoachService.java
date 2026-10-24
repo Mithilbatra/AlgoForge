@@ -77,7 +77,7 @@ public class CoachService {
                 }
                 return new Reply(call.value().reply(), call.value().nextStep(), r.level(), "ai", call.provider(), call.model(), revealNotice);
             }
-            fallbackNotice = "The AI coach is unavailable right now (" + call.status().toLowerCase().replace('_', ' ') + "), so the built-in coach answered.";
+            fallbackNotice = "The AI coach couldn't answer: " + call.error() + ". The built-in coach answered instead; it can't take free-form questions.";
         } else if (r.message() != null && !r.message().isBlank()) {
             fallbackNotice = "Free-form questions need an AI provider. Here is the built-in coach's take instead.";
         }
