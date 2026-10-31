@@ -25,6 +25,7 @@ class AiServiceIntegrationTest extends IntegrationTest {
         final String name;
         final Deque<Object> script = new ArrayDeque<>();
         final AtomicInteger calls = new AtomicInteger();
+        final List<String> prompts = new java.util.concurrent.CopyOnWriteArrayList<>();
 
         Scripted(String name, Object... replies) {
             this.name = name;
@@ -37,6 +38,7 @@ class AiServiceIntegrationTest extends IntegrationTest {
         @Override
         public Completion complete(String model, String system, String user, JsonNode schema, int maxOutputTokens) throws AiException {
             calls.incrementAndGet();
+            prompts.add(user);
             Object next = script.isEmpty() ? REVIEW : script.poll();
             if (next instanceof AiException e) throw e;
             return new Completion((String) next, model, 100, 50);

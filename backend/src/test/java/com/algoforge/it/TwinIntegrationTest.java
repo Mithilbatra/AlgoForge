@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.algoforge.AppProperties;
+import com.algoforge.ai.AiProvider;
 import com.algoforge.ai.AiService;
 import com.algoforge.eval.EvaluationService;
 import com.algoforge.judge.JobQueue;
@@ -52,11 +53,25 @@ class TwinIntegrationTest extends IntegrationTest {
         return json.writeValueAsString(reply);
     }
 
-    TwinService scripted(String... replies) {
-        String provider = jdbc.sql("select provider from ai_provider_configs order by provider").query(String.class).list().getFirst();
+    AiServiceIntegrationTest.Scripted provider(String... replies) {
+        String name = jdbc.sql("select provider from ai_provider_configs order by provider").query(String.class).list().getFirst();
+        return new AiServiceIntegrationTest.Scripted(name, (Object[]) replies);
+    }
+
+    TwinService twins(AiProvider provider) {
         var ai = new AiService(jdbc, json, new AppProperties(null, null, null, new AppProperties.Ai("k", "k", false, 5, 20, 30), null),
-                List.of(new AiServiceIntegrationTest.Scripted(provider, (Object[]) replies)));
+                List.of(provider));
         return new TwinService(jdbc, queue, problems, ai, props, json, tx);
+    }
+
+    TwinService scripted(String... replies) { return twins(provider(replies)); }
+
+    /** A new user's link with a concept, ready for a twin; returns {userId, linkId}. */
+    long[] linkWithConcept(String name) throws Exception {
+        Cookie s = register(name);
+        long link = link(s);
+        jdbc.sql("insert into problem_concepts (problem_id, concept_code, tier) values (?, 'arrays', 1)").param(link).update();
+        return new long[] {userId(s), link};
     }
 
     long link(Cookie s) throws Exception {
@@ -141,6 +156,43 @@ class TwinIntegrationTest extends IntegrationTest {
         assertThatThrownBy(() -> scripted(strict, strict).build(job(uid, link)))
                 .isInstanceOf(TwinService.TwinFailed.class).hasMessageContaining("validator rejects").hasMessageContaining("need n then n numbers");
         assertThat(jdbc.sql("select count(*) from problems where twin_of = ?").param(link).query(Long.class).single()).isZero();
+    }
+
+    @Test
+    void aReferenceThatIsTooSlowAtFullSizeStopsTheTwin() throws Exception {
+        assumeSandbox();
+        long[] ul = linkWithConcept("twin6");
+        String slow = twinReply(Map.of("reference_py", REFERENCE.replace("n=int(d[0])\n", "n=int(d[0])\nif n > 1000:\n    import time; time.sleep(7)\n")));
+        assertThatThrownBy(() -> scripted(slow, slow).build(job(ul[0], ul[1])))
+                .isInstanceOf(TwinService.TwinFailed.class).hasMessageContaining("over the time limit");
+    }
+
+    @Test
+    void aCrashingGeneratorStopsTheTwin() throws Exception {
+        assumeSandbox();
+        long[] ul = linkWithConcept("twin7");
+        String broken = twinReply(Map.of("generator_py", "import sys\nsys.exit('no inputs today')\n"));
+        assertThatThrownBy(() -> scripted(broken, broken).build(job(ul[0], ul[1])))
+                .isInstanceOf(TwinService.TwinFailed.class).hasMessageContaining("generator failed").hasMessageContaining("no inputs today");
+    }
+
+    @Test
+    void aFailedCheckIsSentBackAndTheCorrectedTwinIsSaved() throws Exception {
+        assumeSandbox();
+        long[] ul = linkWithConcept("twin8");
+        var ai = provider(twinReply(Map.of("brute_py", "print(0)\n")), twinReply(Map.of()));
+        assertThat(twins(ai).build(job(ul[0], ul[1]))).containsKey("problemId");
+        assertThat(ai.prompts).hasSize(2);
+        assertThat(ai.prompts.get(1)).contains("previous attempt failed verification").contains("disagree");
+    }
+
+    @Test
+    void aReplyThatBreaksTheSchemaIsRetried() throws Exception {
+        assumeSandbox();
+        long[] ul = linkWithConcept("twin9");
+        var ai = provider("Here is your problem!", twinReply(Map.of()));
+        assertThat(twins(ai).build(job(ul[0], ul[1]))).containsKey("problemId");
+        assertThat(ai.prompts.get(1)).contains("did not match the required JSON schema");
     }
 
     String judged(Cookie s, long problem, String code) throws Exception {
