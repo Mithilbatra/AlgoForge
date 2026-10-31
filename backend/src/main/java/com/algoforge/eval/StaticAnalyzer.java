@@ -26,7 +26,7 @@ public final class StaticAnalyzer {
 
     enum Kind { LINEAR, LOG, CONSTANT, AMORTISED }
 
-    private static final Pattern MID = Pattern.compile("\\bmid\\w*\\s*=|\\(\\s*\\w+\\s*\\+\\s*\\w+\\s*\\)\\s*(/\\s*2|>>\\s*1|//\\s*2)|\\w+\\s*\\+\\s*\\(\\s*\\w+\\s*-\\s*\\w+\\s*\\)\\s*(/|>>|//)");
+    private static final Pattern MID = Pattern.compile("\\bmid\\w*\\s*=|\\(\\s*\\w+\\s*\\+\\s*\\w+\\s*\\)\\s*(/\\s*2|>>\\s*1|//\\s*2)|\\b\\w+\\s*\\+\\s*\\(\\s*\\w+\\s*-\\s*\\w+\\s*\\)\\s*(/|>>|//)");
     private static final Pattern HALVING = Pattern.compile("(/=|//=)\\s*2\\b|>>=\\s*1\\b|\\*=\\s*2\\b|<<=\\s*1\\b");
     private static final Pattern CONST_BOUND = Pattern.compile("<=?\\s*([0-9]{1,2})\\s*;|range\\(\\s*([0-9]{1,2})\\s*\\)|in\\s*[(\\[]\\s*[(\\[]?-?\\d");
     private static final Pattern DSU_FIND = Pattern.compile("while\\s*\\(?\\s*\\w+\\s*\\[\\s*(\\w+)\\s*\\]\\s*!=\\s*\\1\\b");
@@ -129,11 +129,15 @@ public final class StaticAnalyzer {
     // ---- loop discovery -----------------------------------------------------------------------------------------
 
     private static final Pattern LOOP_KW = Pattern.compile("\\b(for|while)\\s*\\(|\\bdo\\s*\\{");
+    private static final Pattern COMPREHENSION = Pattern.compile("\\sfor\\s+[\\w, ()]{1,80}?(?<=\\s)in\\s");
+    // Each loop and function header found costs a scan of the code after it.
+    // shortcut: only the first 200 loops and function headers are examined; contest solutions have far fewer.
+    static final int MAX_BLOCKS = 200;
 
     static List<Loop> cLikeLoops(String s) {
         List<Loop> loops = new ArrayList<>();
         Matcher m = LOOP_KW.matcher(s);
-        while (m.find()) {
+        while (loops.size() < MAX_BLOCKS && m.find()) {
             int start = m.start();
             if (m.group().startsWith("do")) {
                 int open = s.indexOf('{', start);
@@ -202,7 +206,7 @@ public final class StaticAnalyzer {
         String[] lines = s.split("\n", -1);
         int[] offsets = new int[lines.length + 1];
         for (int i = 0; i < lines.length; i++) offsets[i + 1] = offsets[i] + lines[i].length() + 1;
-        for (int i = 0; i < lines.length; i++) {
+        for (int i = 0; i < lines.length && loops.size() < MAX_BLOCKS; i++) {
             String line = lines[i];
             String t = line.strip();
             int indent = line.length() - line.stripLeading().length();
@@ -213,7 +217,7 @@ public final class StaticAnalyzer {
                 loops.add(new Loop(offsets[i], Math.min(offsets[j], s.length()), classify(t, body, loops, offsets[i]), t));
             }
             // comprehension / generator loops: "... for x in ..." inside one line
-            Matcher m = Pattern.compile("\\sfor\\s+[\\w, ()]+\\s+in\\s").matcher(t.startsWith("for ") ? t.substring(3) : t);
+            Matcher m = COMPREHENSION.matcher(t.startsWith("for ") ? t.substring(3) : t);
             while (m.find()) {
                 String tail = t.substring(Math.min(t.length(), m.end() + (t.startsWith("for ") ? 3 : 0)));
                 Kind k = CONST_BOUND.matcher("in " + tail).find() || tail.startsWith("range(2") || tail.startsWith("range(4") ? Kind.CONSTANT : Kind.LINEAR;
@@ -232,7 +236,7 @@ public final class StaticAnalyzer {
     static Recursion recursion(String s, Language lang) {
         if (lang == Language.PYTHON) {
             Matcher m = Pattern.compile("(?m)^([ \\t]*)def\\s+(\\w+)\\s*\\(").matcher(s);
-            while (m.find()) {
+            for (int seen = 0; seen < MAX_BLOCKS && m.find(); seen++) {
                 int indent = m.group(1).length();
                 String name = m.group(2);
                 int bodyStart = s.indexOf('\n', m.end());
@@ -252,8 +256,8 @@ public final class StaticAnalyzer {
             }
             return new Recursion(null, 0, false);
         }
-        Matcher m = Pattern.compile("\\b([A-Za-z_]\\w*)\\s*\\([^;{}()]*\\)\\s*(const\\s*)?(throws\\s+[\\w., ]+)?\\s*\\{").matcher(s);
-        while (m.find()) {
+        Matcher m = Pattern.compile("\\b([A-Za-z_]\\w*)\\s*\\([^;{}()]*\\)\\s*(const\\s*)?(throws\\s+[\\w., ]++)?\\s*\\{").matcher(s);
+        for (int seen = 0; seen < MAX_BLOCKS && m.find(); seen++) {
             String name = m.group(1);
             if (NOT_FUNCTIONS.contains(name)) continue;
             int open = s.indexOf('{', m.end() - 1);
@@ -280,8 +284,8 @@ public final class StaticAnalyzer {
     // ---- space -------------------------------------------------------------------------------------------------
 
     static String space(String s, Language lang, boolean recursive) {
-        boolean twoD = Pattern.compile("new\\s+\\w+\\s*\\[[^\\]]+\\]\\s*\\[[^\\]]+\\]|vector\\s*<\\s*vector|\\[\\s*\\[[^\\]]*\\]\\s*\\*\\s*\\w+\\s+for\\b|\\[\\[[^\\]]*\\]\\s*\\*\\s*\\w+\\s+for\\b").matcher(s).find();
-        boolean oneD = Pattern.compile("new\\s+\\w+\\s*\\[|vector\\s*<|ArrayList|HashMap|HashSet|TreeMap|ArrayDeque|unordered_|\\bmap\\s*<|\\bset\\s*<|\\[0\\]\\s*\\*|\\[\\s*-?\\d+\\s*\\]\\s*\\*|list\\(|\\.split\\(|dict\\(|set\\(|defaultdict|Counter|deque\\(|\\[\\s*\\w[^\\]]*\\s+for\\s").matcher(s).find();
+        boolean twoD = Pattern.compile("new\\s+\\w+\\s*\\[[^\\]\\[]++\\]\\s*\\[[^\\]\\[]++\\]|vector\\s*<\\s*vector|\\[\\s*\\[[^\\]\\[]*+\\]\\s*\\*\\s*\\w+\\s+for\\b|\\[\\[[^\\]\\[]*+\\]\\s*\\*\\s*\\w+\\s+for\\b").matcher(s).find();
+        boolean oneD = Pattern.compile("new\\s+\\w+\\s*\\[|vector\\s*<|ArrayList|HashMap|HashSet|TreeMap|ArrayDeque|unordered_|\\bmap\\s*<|\\bset\\s*<|\\[0\\]\\s*\\*|\\[\\s*-?\\d+\\s*\\]\\s*\\*|list\\(|\\.split\\(|dict\\(|set\\(|defaultdict|Counter|deque\\(|\\[\\s*\\w[^\\]\\[]*?(?<=\\s)for\\s|\\[\\s*\\w[^\\]\\[]*+\\[[^\\]\\[]*+\\][^\\]\\[]*?(?<=\\s)for\\s").matcher(s).find();
         String base = twoD ? "O(n·m)" : oneD ? "O(n)" : "O(1)";
         return recursive && base.equals("O(1)") ? "O(depth) call stack" : base + (recursive ? " + O(depth) call stack" : "");
     }
@@ -350,7 +354,7 @@ public final class StaticAnalyzer {
         String[] lines = raw.split("\n");
         long longLines = java.util.Arrays.stream(lines).filter(l -> l.length() > 120).count();
         if (longLines > 0) { score -= (int) Math.min(15, longLines * 3); notes.add(longLines + " line(s) longer than 120 characters"); }
-        int defines = count(raw, Pattern.compile("(?m)^\\s*#define\\b"));
+        int defines = count(raw, Pattern.compile("(?m)^[ \\t]*#define\\b"));
         if (defines > 4) { score -= 10; notes.add(defines + " #define macros obscure the code"); }
         int maxDepth = 0, depth = 0;
         if (lang == Language.PYTHON) {
@@ -359,7 +363,7 @@ public final class StaticAnalyzer {
             for (char c : clean.toCharArray()) { if (c == '{') maxDepth = Math.max(maxDepth, ++depth); else if (c == '}') depth--; }
         }
         if (maxDepth > 5) { score -= 15; notes.add("nesting depth " + maxDepth + "; extract helpers to flatten it"); }
-        int functions = count(clean, lang == Language.PYTHON ? Pattern.compile("(?m)^\\s*def\\s") : Pattern.compile("\\b\\w+\\s*\\([^;{}()]*\\)\\s*\\{"));
+        int functions = count(clean, lang == Language.PYTHON ? Pattern.compile("(?m)^[ \\t]*def\\s") : Pattern.compile("\\b\\w+\\s*\\([^;{}()]*\\)\\s*\\{"));
         long codeLines = java.util.Arrays.stream(lines).filter(l -> !l.isBlank()).count();
         if (codeLines > 60 && functions <= 1) { score -= 15; notes.add(codeLines + " lines in a single function; split into named steps"); }
         Set<String> oneLetter = new LinkedHashSet<>();

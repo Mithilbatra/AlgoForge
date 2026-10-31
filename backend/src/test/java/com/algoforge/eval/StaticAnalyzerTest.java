@@ -1,8 +1,11 @@
 package com.algoforge.eval;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import com.algoforge.judge.Language;
+import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class StaticAnalyzerTest {
@@ -148,5 +151,15 @@ class StaticAnalyzerTest {
         var r = cpp("int main(){ /* for (int i = 0; i < n; i++) */ const char* s = \"while (true)\"; // for(;;)\n return 0; }");
         assertThat(r.timeComplexity()).isEqualTo("O(n)");
         assertThat(r.explanation()).contains("no explicit loops");
+    }
+
+    @Test
+    void largeAdversarialSubmissionsAreAnalysedQuickly() {
+        // A submission may be 64 KB. Each shape used to make a pattern or a scan restart from every position (up to 30 s).
+        String word = "a".repeat(64_000);
+        List<String> shapes = List.of("for(int i=0;i<n;i++){ " + word + " }", "for i in range(n):\n    " + word + "\n",
+                "[[".repeat(32_000), "[a".repeat(32_000), "x = 1" + " for a".repeat(10_600), "\n".repeat(64_000),
+                "for(;;){".repeat(8_000), "def f():\n".repeat(7_000), "f(){".repeat(16_000));
+        assertTimeoutPreemptively(Duration.ofSeconds(20), () -> shapes.forEach(s -> { py(s); cpp(s); java(s); }));
     }
 }
