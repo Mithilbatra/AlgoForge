@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -123,6 +124,9 @@ public class TwinService {
                 return Map.of("problemId", save(userId, sourceId, call.value(), difficulty, chosen, v));
             } catch (TwinFailed e) {
                 feedback = e.getMessage();
+            } catch (DuplicateKeyException e) {
+                // Another job for the same link (a second tab) saved its twin first: use that one.
+                return Map.of("problemId", existing(userId, sourceId).orElseThrow());
             }
         }
         throw new TwinFailed("Couldn't verify an original twin after " + ATTEMPTS + " attempts. Last problem: " + feedback);

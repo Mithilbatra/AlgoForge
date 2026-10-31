@@ -195,6 +195,26 @@ class TwinIntegrationTest extends IntegrationTest {
         assertThat(ai.prompts.get(1)).contains("did not match the required JSON schema");
     }
 
+    @Test
+    void whenAnotherJobSavesTheTwinFirstThatTwinIsReturned() throws Exception {
+        assumeSandbox();
+        long[] ul = linkWithConcept("twin10");
+        String reply = twinReply(Map.of()), name = provider().name();
+        long[] first = new long[1];
+        AiProvider racing = new AiProvider() {
+            @Override public String name() { return name; }
+            @Override public boolean configured() { return true; }
+            @Override public Completion complete(String model, String system, String user, JsonNode schema, int maxOutputTokens) {
+                // A job from a second tab saves its twin while this one is still being verified.
+                first[0] = jdbc.sql("insert into problems (source, title, owner_id, twin_of) values ('ORIGINAL', 'First twin', ?, ?) returning id")
+                        .params(ul[0], ul[1]).query(Long.class).single();
+                return new Completion(reply, model, 1, 1);
+            }
+        };
+        assertThat(twins(racing).build(job(ul[0], ul[1]))).containsEntry("problemId", first[0]);
+        assertThat(jdbc.sql("select count(*) from problems where twin_of = ?").param(ul[1]).query(Long.class).single()).isEqualTo(1);
+    }
+
     String judged(Cookie s, long problem, String code) throws Exception {
         var req = new HashMap<String, Object>(Map.of("problemId", problem, "language", "python", "code", code));
         long sid = body(mvc.perform(jsonPost("/api/submissions", s, req)).andReturn()).get("submissionId").asLong();
