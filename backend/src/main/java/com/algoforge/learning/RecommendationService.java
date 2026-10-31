@@ -81,7 +81,7 @@ public class RecommendationService {
                 .single();
         int minutes = 0;
         Map<Long, Problem> problems = problems(userId);
-        for (Candidate c : candidates(userId, Set.of(), prefs.targetDifficulty(), List.of(prefs.goalConcepts()), prefs.goalText())) {
+        for (Candidate c : candidates(userId, problems, Set.of(), prefs.targetDifficulty(), List.of(prefs.goalConcepts()), prefs.goalText())) {
             if (minutes >= prefs.dailyMinutes() || stored(userId, day).size() >= MAX_ITEMS) break;
             insert(userId, c, day);
             Problem p = problems.get(c.problemId());
@@ -101,7 +101,7 @@ public class RecommendationService {
                 Set<Long> exclude = stored(userId, day).stream().map(Rec::problemId).collect(Collectors.toSet());
                 exclude.addAll(jdbc.sql("select problem_id from recommendations where user_id = ? and for_date = ?")
                         .params(userId, day).query(Long.class).list());
-                List<Candidate> alts = candidates(userId, exclude, null, List.of(), null);
+                List<Candidate> alts = candidates(userId, problems(userId), exclude, null, List.of(), null);
                 Optional<Candidate> alt = alts.stream().filter(c -> c.conceptCode() != null && c.conceptCode().equals(r.conceptCode())).findFirst()
                         .or(() -> alts.stream().findFirst());
                 if (alt.isEmpty()) throw ApiException.conflict("No other suitable problem is available right now");
@@ -115,7 +115,7 @@ public class RecommendationService {
     /** The next transfer step after solving a problem, if there is an unsolved one. */
     public Optional<Candidate> transferFor(long userId, long problemId) {
         Map<Long, Problem> problems = problems(userId);
-        List<ProblemConcept> pcs = problemConcepts(userId);
+        List<ProblemConcept> pcs = problemConcepts(problems);
         for (ProblemConcept solved : pcs.stream().filter(pc -> pc.problemId() == problemId).toList()) {
             Optional<Candidate> next = nextTier(solved, pcs, problems, Set.of(problemId));
             if (next.isPresent()) return next;
@@ -126,7 +126,7 @@ public class RecommendationService {
     /** Follow-up practice for a set of concepts (used by the post-assessment report). */
     public List<Candidate> followUps(long userId, Collection<String> concepts, Set<Long> exclude, int limit) {
         Map<Long, Problem> problems = problems(userId);
-        List<ProblemConcept> pcs = problemConcepts(userId);
+        List<ProblemConcept> pcs = problemConcepts(problems);
         List<Candidate> out = new ArrayList<>();
         Set<Long> used = new HashSet<>(exclude);
         for (String concept : concepts) {
@@ -143,9 +143,9 @@ public class RecommendationService {
         return out;
     }
 
-    List<Candidate> candidates(long userId, Set<Long> exclude, String targetDifficulty, List<String> goalConcepts, String goalText) {
-        Map<Long, Problem> problems = problems(userId);
-        List<ProblemConcept> pcs = problemConcepts(userId);
+    List<Candidate> candidates(long userId, Map<Long, Problem> problems, Set<Long> exclude, String targetDifficulty,
+                               List<String> goalConcepts, String goalText) {
+        List<ProblemConcept> pcs = problemConcepts(problems);
         Map<String, ConceptMastery> mastery = learning.concepts(userId).stream()
                 .collect(Collectors.toMap(ConceptMastery::code, Function.identity()));
         Map<Long, Candidate> out = new LinkedHashMap<>();
@@ -251,10 +251,10 @@ public class RecommendationService {
                 .collect(Collectors.toMap(Problem::id, Function.identity()));
     }
 
-    private List<ProblemConcept> problemConcepts(long userId) {
-        Set<Long> judgeable = problems(userId).keySet();
-        return jdbc.sql("select problem_id, concept_code, tier from problem_concepts order by problem_id")
-                .query(ProblemConcept.class).list().stream().filter(pc -> judgeable.contains(pc.problemId())).toList();
+    /** The concepts of the given (judgeable) problems only, not of the whole synced catalogue. */
+    private List<ProblemConcept> problemConcepts(Map<Long, Problem> problems) {
+        return jdbc.sql("select problem_id, concept_code, tier from problem_concepts where problem_id = any(?) order by problem_id")
+                .param(problems.keySet().toArray(Long[]::new)).query(ProblemConcept.class).list();
     }
 
     private long insert(long userId, Candidate c, LocalDate day) {
