@@ -9,7 +9,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Postgres-backed job queue: workers claim with FOR UPDATE SKIP LOCKED, refresh locked_at while busy, and jobs whose
- * worker disappeared are re-queued (or failed after max attempts).
+ * worker disappeared are re-queued (or failed after max attempts). Finished jobs keep their result but drop their
+ * payload (code and custom input, up to 1 MB), which nothing reads after the run.
  */
 @Component
 public class JobQueue {
@@ -45,12 +46,12 @@ public class JobQueue {
     }
 
     public void complete(long id, Object result) {
-        jdbc.sql("update execution_jobs set status = 'DONE', result = cast(? as jsonb), finished_at = now() where id = ?")
+        jdbc.sql("update execution_jobs set status = 'DONE', result = cast(? as jsonb), payload = '{}', finished_at = now() where id = ?")
                 .params(result == null ? null : write(result), id).update();
     }
 
     public void fail(long id, String error) {
-        jdbc.sql("update execution_jobs set status = 'FAILED', error = ?, finished_at = now() where id = ?")
+        jdbc.sql("update execution_jobs set status = 'FAILED', error = ?, payload = '{}', finished_at = now() where id = ?")
                 .params(error, id).update();
     }
 
@@ -60,6 +61,7 @@ public class JobQueue {
                    set status = case when attempts >= :max then 'FAILED' else 'QUEUED' end,
                        error = case when attempts >= :max then 'Worker stopped while running this job' end,
                        finished_at = case when attempts >= :max then now() end,
+                       payload = case when attempts >= :max then '{}' else payload end,
                        worker_id = null, locked_at = null
                  where status = 'RUNNING' and locked_at < now() - make_interval(secs => :stale)
                 returning id, type, submission_id, status""")
