@@ -39,12 +39,18 @@ class TwinIntegrationTest extends IntegrationTest {
     static final String BRUTE = "import sys\nd=sys.stdin.read().split()\nt=0\nfor i in range(int(d[0])):\n    t+=int(d[1+i])\nprint(t)\n";
     static final String GEN = "import sys, random\nr=random.Random(int(sys.argv[1]))\nn=int(sys.argv[2])\nb=10 if n<10 else 10**9\n"
             + "print(n)\nprint(' '.join(str(r.randint(-b,b)) for _ in range(n)))\n";
+    static final String VALIDATOR = "import sys\nd=sys.stdin.read().split()\nn=int(d[0])\n"
+            + "assert 1 <= n <= 100000 and len(d) == n + 1, 'need n then n numbers'\nassert all(abs(int(x)) <= 10**9 for x in d[1:]), 'a_i out of range'\n";
 
-    String twinReply(String brute) throws Exception {
-        return json.writeValueAsString(Map.of("title", "Lantern Ledger",
+    /** A valid twin reply, with some fields replaced. */
+    String twinReply(Map<String, Object> changes) throws Exception {
+        Map<String, Object> reply = new HashMap<>(Map.of("title", "Lantern Ledger",
                 "statement_md", "Each lantern adds its charge to the ledger.\n\n### Input\nn, then n integers.\n\n### Output\nThe ledger total.",
-                "constraints_md", "1 ≤ n ≤ 10^5; |a_i| ≤ 10^9", "reference_py", REFERENCE, "brute_py", brute, "generator_py", GEN,
+                "constraints_md", "1 ≤ n ≤ 10^5; |a_i| ≤ 10^9", "reference_py", REFERENCE, "brute_py", BRUTE, "generator_py", GEN,
                 "samples", List.of("3\n1 2 3\n", "1\n-5\n"), "hints", List.of("h1", "h2", "h3"), "editorial_md", "One pass.", "max_n", 100000));
+        reply.put("validator_py", VALIDATOR);
+        reply.putAll(changes);
+        return json.writeValueAsString(reply);
     }
 
     TwinService scripted(String... replies) {
@@ -97,11 +103,12 @@ class TwinIntegrationTest extends IntegrationTest {
         long uid = userId(s), link = link(s);
         jdbc.sql("insert into problem_concepts (problem_id, concept_code, tier) values (?, 'arrays', 1)").param(link).update();
 
-        long twin = ((Number) scripted(twinReply(BRUTE)).build(job(uid, link)).get("problemId")).longValue();
+        long twin = ((Number) scripted(twinReply(Map.of())).build(job(uid, link)).get("problemId")).longValue();
         assertThat(jdbc.sql("select count(*) from problems where id = ? and owner_id = ? and twin_of = ? and source = 'ORIGINAL'")
                 .params(twin, uid, link).query(Long.class).single()).isEqualTo(1);
         JsonNode detail = body(mvc.perform(get("/api/problems/" + twin).cookie(s)).andReturn());
         assertThat(detail.get("judgeable").asBoolean()).isTrue();
+        assertThat(jdbc.sql("select validator_py from problems where id = ?").param(twin).query(String.class).single()).isEqualTo(VALIDATOR);
         assertThat(detail.get("samples")).hasSize(2);
         assertThat(detail.get("officialTests").asInt()).isEqualTo(9);
         assertThat(detail.get("twinOfId").asLong()).isEqualTo(link);
@@ -121,8 +128,20 @@ class TwinIntegrationTest extends IntegrationTest {
         long uid = userId(s), link = link(s);
         jdbc.sql("insert into problem_concepts (problem_id, concept_code, tier) values (?, 'arrays', 1)").param(link).update();
         String bad = BRUTE.replace("t+=int(d[1+i])", "t+=abs(int(d[1+i]))");
-        assertThatThrownBy(() -> scripted(twinReply(bad), twinReply(bad)).build(job(uid, link)))
+        assertThatThrownBy(() -> scripted(twinReply(Map.of("brute_py", bad)), twinReply(Map.of("brute_py", bad))).build(job(uid, link)))
                 .isInstanceOf(TwinService.TwinFailed.class).hasMessageContaining("disagree");
+        assertThat(jdbc.sql("select count(*) from problems where twin_of = ?").param(link).query(Long.class).single()).isZero();
+    }
+
+    @Test
+    void aGeneratorThatBreaksTheConstraintsStopsTheTwin() throws Exception {
+        assumeSandbox();
+        Cookie s = register("twin5");
+        long uid = userId(s), link = link(s);
+        jdbc.sql("insert into problem_concepts (problem_id, concept_code, tier) values (?, 'arrays', 1)").param(link).update();
+        String strict = twinReply(Map.of("validator_py", VALIDATOR.replace("n <= 100000", "n <= 5")));  // the generator also makes n = 8
+        assertThatThrownBy(() -> scripted(strict, strict).build(job(uid, link)))
+                .isInstanceOf(TwinService.TwinFailed.class).hasMessageContaining("validator rejects").hasMessageContaining("need n then n numbers");
         assertThat(jdbc.sql("select count(*) from problems where twin_of = ?").param(link).query(Long.class).single()).isZero();
     }
 

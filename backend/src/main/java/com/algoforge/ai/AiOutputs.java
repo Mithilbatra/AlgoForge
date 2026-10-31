@@ -24,7 +24,7 @@ public final class AiOutputs {
     public record CoachReply(String reply, String nextStep) {}
 
     public record Twin(String title, String statementMd, String constraintsMd, String referencePy, String brutePy,
-                       String generatorPy, List<String> samples, List<String> hints, String editorialMd, int maxN) {}
+                       String generatorPy, String validatorPy, List<String> samples, List<String> hints, String editorialMd, int maxN) {}
 
     public static class InvalidOutput extends Exception {
         public InvalidOutput(String message) { super(message); }
@@ -77,7 +77,7 @@ public final class AiOutputs {
         if (maxN == null || !maxN.canConvertToInt() || maxN.asInt() < 1) throw new InvalidOutput("max_n must be a positive integer");
         List<String> samples = strings(n, "samples", 3, 2000).stream().filter(x -> !x.isBlank()).map(x -> x.endsWith("\n") ? x : x + "\n").toList();
         return new Twin(title, str(n, "statement_md", 8000), str(n, "constraints_md", 500), code(n, "reference_py"), code(n, "brute_py"),
-                code(n, "generator_py"), samples, strings(n, "hints", 3, 500), str(n, "editorial_md", 6000), Math.min(maxN.asInt(), 200_000));
+                code(n, "generator_py"), code(n, "validator_py"), samples, strings(n, "hints", 3, 500), str(n, "editorial_md", 6000), Math.min(maxN.asInt(), 200_000));
     }
 
     private static String code(JsonNode n, String field) throws InvalidOutput {

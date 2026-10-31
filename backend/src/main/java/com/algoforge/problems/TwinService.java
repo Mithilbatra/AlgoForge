@@ -23,9 +23,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Original twins. For a linked problem (statement on another site) the AI writes a new problem that tests the same
  * techniques at the same difficulty, in its own words. It receives only the concepts, tags and difficulty, never the
- * original's title, link or statement, so there is nothing to copy. The worker runs the AI's reference solution and
- * its independent brute force in the sandbox and requires them to agree on the samples and on random small inputs,
- * and the reference to finish in time at full size, before the twin is saved as the user's private problem.
+ * original's title, link or statement, so there is nothing to copy. The worker runs the AI's code in the sandbox: every
+ * sample and generated input must pass its input validator, its reference solution and independent brute force must
+ * agree on the samples and on random small inputs, and the reference must finish in time at full size, before the
+ * twin is saved as the user's private problem.
  */
 @Service
 public class TwinService {
@@ -129,8 +130,8 @@ public class TwinService {
 
     Verified verify(Twin t) {
         AppProperties.Sandbox cfg = props.sandbox();
-        try (Oracle ref = Oracle.open(cfg, info(t.referencePy(), t.generatorPy(), t.maxN()));
-             Oracle brute = Oracle.open(cfg, info(t.brutePy(), null, t.maxN()))) {
+        try (Oracle ref = Oracle.open(cfg, info(t.referencePy(), t.generatorPy(), t.validatorPy(), t.maxN()));
+             Oracle brute = Oracle.open(cfg, info(t.brutePy(), null, null, t.maxN()))) {
             List<Test> samples = new ArrayList<>(), hidden = new ArrayList<>();
             for (String in : t.samples()) samples.add(new Test(in, agree(ref, brute, in, "sample"), null, null));
             for (int n : SMALL_N) {
@@ -146,6 +147,7 @@ public class TwinService {
             int[] sizes = {Math.max(1, t.maxN() / 100), Math.max(1, t.maxN() / 10), Math.max(1, t.maxN() / 3), t.maxN(), t.maxN(), t.maxN()};
             for (int i = 0; i < sizes.length; i++) {
                 String in = ref.generate(i + 1, sizes[i]);
+                valid(ref, in, "generated input (seed " + (i + 1) + ", n = " + sizes[i] + ")");
                 long t0 = System.nanoTime();
                 String out = ref.reference(in);
                 double seconds = (System.nanoTime() - t0) / 1e9;
@@ -160,7 +162,14 @@ public class TwinService {
         }
     }
 
+    static void valid(Oracle ref, String input, String what) {
+        ref.validate(input).ifPresent(msg -> {
+            throw new TwinFailed("The validator rejects a " + what + ": " + msg + "; input " + excerpt(input, 200) + ".");
+        });
+    }
+
     static String agree(Oracle ref, Oracle brute, String input, String what) {
+        valid(ref, input, what);
         String expected = ref.reference(input), other = brute.reference(input);
         if (expected.isBlank()) throw new TwinFailed("The reference printed nothing for a " + what + ".");
         if (!Verdicts.sameTokens(expected, other)) {
@@ -177,10 +186,10 @@ public class TwinService {
         return tx.execute(s -> {
             long id = jdbc.sql("""
                     insert into problems (source, title, statement_md, constraints_md, editorial_md, hints, difficulty, est_minutes,
-                        time_limit_ms, memory_limit_mb, max_n, input_size_power, reference_py, generator_py, generated_specs, owner_id, twin_of)
-                    values ('ORIGINAL', ?, ?, ?, ?, cast(? as jsonb), ?, ?, 2000, 256, ?, 1, ?, ?, cast(? as jsonb), ?, ?) returning id""")
+                        time_limit_ms, memory_limit_mb, max_n, input_size_power, reference_py, generator_py, validator_py, generated_specs, owner_id, twin_of)
+                    values ('ORIGINAL', ?, ?, ?, ?, cast(? as jsonb), ?, ?, 2000, 256, ?, 1, ?, ?, ?, cast(? as jsonb), ?, ?) returning id""")
                     .params(t.title(), t.statementMd(), t.constraintsMd(), t.editorialMd(), hints, difficulty, minutes, t.maxN(),
-                            t.referencePy(), t.generatorPy(), specs, userId, sourceId)
+                            t.referencePy(), t.generatorPy(), t.validatorPy(), specs, userId, sourceId)
                     .query(Long.class).single();
             jdbc.sql("insert into problem_concepts (problem_id, concept_code, tier) select ?, concept_code, tier from problem_concepts where problem_id = ?")
                     .params(id, sourceId).update();
@@ -238,8 +247,8 @@ public class TwinService {
         return jdbc.sql("select tag from problem_tags where problem_id = ? order by tag").param(problemId).query(String.class).list();
     }
 
-    private static JudgeInfo info(String referencePy, String generatorPy, int maxN) {
-        return new JudgeInfo(0, "twin", "ORIGINAL", 2000, 256, maxN, 1, null, null, referencePy, generatorPy, null, "[]", 1);
+    private static JudgeInfo info(String referencePy, String generatorPy, String validatorPy, int maxN) {
+        return new JudgeInfo(0, "twin", "ORIGINAL", 2000, 256, maxN, 1, null, null, referencePy, generatorPy, validatorPy, "[]", 1);
     }
 
     private static String excerpt(String s, int max) {

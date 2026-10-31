@@ -74,12 +74,13 @@ class AiOutputsTest {
         var ok = new java.util.HashMap<String, Object>(java.util.Map.of("title", " Lantern Count ", "statement_md", "s", "constraints_md", "1 ≤ n ≤ 10",
                 "reference_py", "print(1)", "brute_py", "print(1)", "generator_py", "print(1)", "samples", java.util.List.of("1", " "),
                 "hints", java.util.List.of("a", "b", "c", "d"), "editorial_md", "e", "max_n", 5_000_000));
+        ok.put("validator_py", "print(1)");
         var t = AiOutputs.twin(M.valueToTree(ok));
         assertThat(t.title()).isEqualTo("Lantern Count");
         assertThat(t.samples()).containsExactly("1\n");  // blank samples dropped, newline added
         assertThat(t.hints()).hasSize(3);
         assertThat(t.maxN()).isEqualTo(200_000);
-        for (var bad : java.util.List.<java.util.Map<String, Object>>of(java.util.Map.of("brute_py", " "), java.util.Map.of("max_n", 0),
+        for (var bad : java.util.List.<java.util.Map<String, Object>>of(java.util.Map.of("brute_py", " "), java.util.Map.of("validator_py", " "), java.util.Map.of("max_n", 0),
                 java.util.Map.of("samples", "1 2"), java.util.Map.of("title", ""))) {
             var node = new java.util.HashMap<>(ok);
             node.putAll(bad);

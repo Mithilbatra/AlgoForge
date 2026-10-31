@@ -55,7 +55,7 @@ Last full run: 94 backend tests (3 opt-in live tests skipped without keys) and 8
 - **No verdict sync from external platforms.** Codeforces `user.status` could provide it later.
 - **No company tags.** No legitimately sourced data exists for them.
 - **No statement import for external problems.** The APIs used don't provide statements, and AlgoForge does not scrape. Original twins are the alternative: new problems on the same technique.
-- **Original twins are only as sure as two AI-written programs.** The reference and the brute force come from the same model, so a shared misreading of the statement passes the cross-check. Twins have no input validator, and there is no way to edit or delete one yet.
+- **Original twins are only as sure as two AI-written programs.** The reference and the brute force come from the same model, so a shared misreading of the statement passes the cross-check. Their input validator is AI-written too, and there is no way to edit or delete a twin yet.
 - **Drafts are per browser.** They live in `localStorage`, so autosave does not follow you across devices, and signing out deletes them.
 - **Rate limits are kept in memory per API instance.** Move them to Redis or PostgreSQL before running several API instances. Sessions are already shared.
 - **Monaco loads from the jsDelivr CDN.** Host it yourself for offline or strict-CSP deployments.

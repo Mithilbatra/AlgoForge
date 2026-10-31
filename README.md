@@ -201,8 +201,8 @@ Each adapter declares its capabilities (discovery, metadata sync, statements, ex
 
 AlgoForge does not copy statements from other sites, and renaming the nouns in someone else's problem would still copy it. Instead, a linked problem's page offers to create an original twin (`POST /api/problems/{id}/twin`, 5 per hour):
 
-1. The worker sends the AI only the problem's concepts, tags and difficulty, never its title, link or text. The AI writes a new problem: statement, constraints, samples, hints, an editorial, a reference solution, an independent brute force and a seeded input generator.
-2. All of that code runs only in the Python sandbox. The reference and the brute force must agree on the samples and on 15 random small inputs, and the reference must finish within the time limit at full size.
+1. The worker sends the AI only the problem's concepts, tags and difficulty, never its title, link or text. The AI writes a new problem: statement, constraints, samples, hints, an editorial, a reference solution, an independent brute force, a seeded input generator and an input validator.
+2. All of that code runs only in the Python sandbox. Every sample and generated input must pass the validator, and the reference and the brute force must agree on the samples and on 15 random small inputs, and the reference must finish within the time limit at full size.
 3. If a check fails, the failure goes back to the AI once for a corrected problem. If the second attempt also fails, the job reports why and nothing is saved.
    A twin usually takes 2 to 5 minutes, mostly the AI's thinking, so the worker allows AI calls up to 600 s.
 4. A verified twin is saved as your private original problem with its samples and 9 hidden tests. It is linked both ways to the source problem and keeps the source's concepts, so solving it counts as learning evidence.

@@ -55,6 +55,8 @@ public final class Prompts {
             generator inputs with n ≤ 8, and it is run against reference_py on many of them.
             generator_py: called as `python3 gen.py <seed> <n>`, prints one valid random input of size about n using
             random.Random(seed), respecting every constraint, with small values when n is small so edge cases appear.
+            validator_py: reads one input from stdin and exits with a non-zero code, printing the broken rule to stderr,
+            if the format or any constraint is violated; it exits 0 otherwise. Every sample and generator output must pass.
             samples: two small valid inputs that illustrate the task; outputs are computed from your reference.
             hints: three hints from gentle to strong, without code. editorial_md: the idea and its complexity, no code.
             max_n: the largest n the generator should be called with (the size constraint's maximum, at most 200000).
@@ -98,10 +100,11 @@ public final class Prompts {
 
     public static final JsonNode TWIN_SCHEMA = read("""
             {"type": "object", "additionalProperties": false,
-             "required": ["title", "statement_md", "constraints_md", "reference_py", "brute_py", "generator_py",
+             "required": ["title", "statement_md", "constraints_md", "reference_py", "brute_py", "generator_py", "validator_py",
                           "samples", "hints", "editorial_md", "max_n"],
              "properties": {"title": {"type": "string"}, "statement_md": {"type": "string"}, "constraints_md": {"type": "string"},
                "reference_py": {"type": "string"}, "brute_py": {"type": "string"}, "generator_py": {"type": "string"},
+               "validator_py": {"type": "string"},
                "samples": {"type": "array", "items": {"type": "string"}}, "hints": {"type": "array", "items": {"type": "string"}},
                "editorial_md": {"type": "string"}, "max_n": {"type": "integer"}}}""");
 
