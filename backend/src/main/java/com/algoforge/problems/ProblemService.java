@@ -2,7 +2,6 @@ package com.algoforge.problems;
 
 import com.algoforge.common.ApiException;
 import com.algoforge.common.Audit;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -71,10 +70,5 @@ public class ProblemService {
                 select (exists (select 1 from test_cases where problem_id = p.id and kind in ('SAMPLE', 'OFFICIAL'))
                         or jsonb_array_length(p.generated_specs) > 0) from problems p where p.id = ?""")
                 .param(problemId).query(Boolean.class).optional().orElse(false);
-    }
-
-    public List<String> conceptCodes(long problemId) {
-        return jdbc.sql("select concept_code from problem_concepts where problem_id = ? order by concept_code")
-                .param(problemId).query(String.class).list();
     }
 }

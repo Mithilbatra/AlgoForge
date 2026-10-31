@@ -1,7 +1,6 @@
 package com.algoforge.sources;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -36,8 +35,6 @@ public class SourceRegistry {
     }
 
     public Optional<ProblemSourceAdapter> get(String code) { return Optional.ofNullable(adapters.get(code)); }
-
-    public List<ProblemSourceAdapter> all() { return List.copyOf(adapters.values()); }
 
     /** Finds the platform a URL belongs to; empty means "some other site" (stored as a MANUAL link). */
     public Optional<Match> match(URI url) {
