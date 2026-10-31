@@ -14,6 +14,8 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import jakarta.servlet.http.Cookie;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -31,6 +33,12 @@ public abstract class IntegrationTest {
     }
 
     private static final AtomicInteger IPS = new AtomicInteger(1);
+
+    /** The shell's AI keys never reach these tests: scripted providers stand in, and LiveIntegrationTest is the opt-in. */
+    @DynamicPropertySource
+    static void withoutApiKeys(DynamicPropertyRegistry registry) {
+        System.getenv().keySet().stream().filter(k -> k.endsWith("_API_KEY")).forEach(k -> registry.add(k, () -> ""));
+    }
 
     @Autowired protected MockMvc mvc;
     @Autowired protected ObjectMapper json;

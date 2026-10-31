@@ -31,7 +31,6 @@ class TwinIntegrationTest extends IntegrationTest {
     @Autowired EvaluationService evaluations;
     @Autowired TwinService twins;
     @Autowired ProblemService problems;
-    @Autowired AiService realAi;
     @Autowired AppProperties props;
     @Autowired TransactionTemplate tx;
 
@@ -76,7 +75,6 @@ class TwinIntegrationTest extends IntegrationTest {
 
     @Test
     void requestsAreGuarded() throws Exception {
-        assumeTrue(!realAi.anyAvailable("TESTGEN"), "runs without AI keys");
         Cookie alice = register("twin"), bob = register("twin2");
         long uid = userId(alice), link = link(alice);
         mvc.perform(jsonPost("/api/problems/" + problemId("Range Totals") + "/twin", alice, Map.of())).andExpect(status().isBadRequest());
