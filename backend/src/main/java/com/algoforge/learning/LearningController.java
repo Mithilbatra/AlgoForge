@@ -3,6 +3,7 @@ package com.algoforge.learning;
 import com.algoforge.auth.CurrentUser;
 import com.algoforge.learning.LearningService.ConceptMastery;
 import com.algoforge.learning.RecommendationService.Rec;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.springframework.context.annotation.Profile;
@@ -33,13 +34,13 @@ public class LearningController {
     }
 
     @GetMapping("/api/recommendations/today")
-    public List<Rec> today(Authentication auth) {
-        return recommendations.today(CurrentUser.id(auth));
+    public List<Rec> today(Authentication auth, @RequestParam(required = false) String tz) {
+        return recommendations.today(CurrentUser.id(auth), LocalDate.now(RecommendationService.zone(tz)));
     }
 
     @PostMapping("/api/recommendations/{id}/{action}")
-    public Rec act(@PathVariable long id, @PathVariable String action, Authentication auth) {
-        return recommendations.act(CurrentUser.id(auth), id, action);
+    public Rec act(@PathVariable long id, @PathVariable String action, @RequestParam(required = false) String tz, Authentication auth) {
+        return recommendations.act(CurrentUser.id(auth), id, action, LocalDate.now(RecommendationService.zone(tz)));
     }
 
     /** "What next?" after solving a problem: the transfer step, if one exists. */

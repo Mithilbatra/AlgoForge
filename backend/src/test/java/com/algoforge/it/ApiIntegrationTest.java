@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.algoforge.judge.JobQueue;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -158,5 +160,26 @@ class ApiIntegrationTest extends IntegrationTest {
         assertThat(india.get(0).get("accepted").asInt()).isEqualTo(1);
         JsonNode unknownZone = body(mvc.perform(get("/api/dashboard?tz=Not/A_Zone").cookie(s)).andExpect(status().isOk()).andReturn()).get("activity");
         assertThat(unknownZone.get(0).get("day").asText()).isEqualTo(utcDay.toString());
+    }
+
+    @Test
+    void streaksAndTodaysPlanFollowTheBrowsersTimeZone() throws Exception {
+        Cookie s = register("kiritimati");
+        long uid = userId(s);
+        // Kiritimati is UTC+14: half an hour either side of its midnight is two days there but one day on most servers.
+        ZoneId zone = ZoneId.of("Pacific/Kiritimati");
+        OffsetDateTime midnight = LocalDate.now(zone).atStartOfDay(zone).toOffsetDateTime();
+        for (OffsetDateTime at : List.of(midnight.minusMinutes(30), midnight.plusMinutes(30))) {
+            jdbc.sql("""
+                    insert into submissions (user_id, problem_id, language, code, status, passed, total, judged_at, created_at)
+                    values (?, ?, 'python', 'print(1)', 'ACCEPTED', 8, 8, now(), ?)""").params(uid, problemId("Stepping Stones"), at).update();
+        }
+        jdbc.sql("update user_preferences set show_streak = true where user_id = ?").param(uid).update();
+        JsonNode dash = body(mvc.perform(get("/api/dashboard?tz=Pacific/Kiritimati").cookie(s)).andExpect(status().isOk()).andReturn());
+        assertThat(dash.get("streakDays").asInt()).isEqualTo(2);
+        assertThat(jdbc.sql("select distinct for_date from recommendations where user_id = ?").param(uid).query(LocalDate.class).list())
+                .containsExactly(LocalDate.now(zone));
+        long rec = dash.get("recommendations").get(0).get("id").asLong();
+        mvc.perform(post("/api/recommendations/" + rec + "/accept?tz=Pacific/Kiritimati").cookie(s).with(csrf())).andExpect(status().isOk());
     }
 }

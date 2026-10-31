@@ -61,8 +61,8 @@ class LearningIntegrationTest extends IntegrationTest {
     @Test
     void concurrentRequestsBuildTodaysSessionOnce() throws Exception {
         long uid = userId(register("today"));
-        var a = CompletableFuture.supplyAsync(() -> recommendations.today(uid));
-        var b = CompletableFuture.supplyAsync(() -> recommendations.today(uid));
+        var a = CompletableFuture.supplyAsync(() -> recommendations.today(uid, java.time.LocalDate.now()));
+        var b = CompletableFuture.supplyAsync(() -> recommendations.today(uid, java.time.LocalDate.now()));
         assertThat(a.join()).isEqualTo(b.join());
         var counts = jdbc.sql("select count(*) as n, count(distinct problem_id) as d from recommendations where user_id = ?")
                 .param(uid).query().singleRow();

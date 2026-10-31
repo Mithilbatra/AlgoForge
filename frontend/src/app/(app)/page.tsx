@@ -6,7 +6,7 @@ import { useMe } from "@/components/AppShell";
 import { RecommendationList } from "@/components/RecommendationList";
 import { ActivityHeatmap, type ActivityDay } from "@/components/ActivityHeatmap";
 import { Badge, ButtonLink, Callout, Card, cx, Empty, ErrorNote, Meter, Page, PageHeader, Skeleton, Stat, StatStrip, Verdict } from "@/components/ui";
-import { MASTERY_LABEL, masteryTone, relativeTime } from "@/lib/format";
+import { MASTERY_LABEL, masteryTone, relativeTime, tzQuery } from "@/lib/format";
 import type { ConceptMastery, Page as Paged, ProblemSummary, Recommendation } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 import { useTitle } from "@/lib/useTitle";
@@ -62,7 +62,7 @@ function MasteryBar({ counts }: { counts: Record<string, number> }) {
 export default function DashboardPage() {
   useTitle("Dashboard");
   const me = useMe();
-  const { data, error, reload, setData } = useApi<Dashboard>(`/api/dashboard?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`);
+  const { data, error, reload, setData } = useApi<Dashboard>(`/api/dashboard?${tzQuery()}`);
   const solved = useApi<Paged<ProblemSummary>>("/api/problems?status=SOLVED&size=1");
 
   if (error) return <Page><ErrorNote message={error} onRetry={reload} /></Page>;

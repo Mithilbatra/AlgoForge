@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight, Clock, Crosshair, Repeat, Shuffle, Sparkles, Target, Waypoints, type LucideIcon } from "lucide-react";
 import { errorMessage, post } from "@/lib/api";
-import { difficultyTone } from "@/lib/format";
+import { difficultyTone, tzQuery } from "@/lib/format";
 import type { Recommendation } from "@/lib/types";
 import { Badge, Button, cx, ErrorNote, type Tone } from "./ui";
 
@@ -27,7 +27,7 @@ export function RecommendationList({ items, onChange, compact = false }: { items
     setBusy(r.id);
     setError(undefined);
     try {
-      const updated = await post<Recommendation>(`/api/recommendations/${r.id}/${action}`);
+      const updated = await post<Recommendation>(`/api/recommendations/${r.id}/${action}?${tzQuery()}`);
       if (action === "accept") { router.push(`/problems/${r.problemId}`); return; }
       onChange(items.map((x) => (x.id === r.id ? updated : x)));  // a replacement takes the old item's place
     } catch (e) {

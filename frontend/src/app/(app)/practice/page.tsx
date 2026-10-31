@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Flame, Hourglass, Scale, Waypoints } from "lucide-react";
 import { RecommendationList } from "@/components/RecommendationList";
 import { Badge, Card, Empty, ErrorNote, Page, PageHeader, Skeleton } from "@/components/ui";
+import { tzQuery } from "@/lib/format";
 import type { Recommendation } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 import { useTitle } from "@/lib/useTitle";
@@ -16,7 +17,7 @@ const RULES = [
 
 export default function PracticePage() {
   useTitle("Practice");
-  const recs = useApi<Recommendation[]>("/api/recommendations/today");
+  const recs = useApi<Recommendation[]>(`/api/recommendations/today?${tzQuery()}`);
   const minutes = recs.data?.filter((r) => r.status === "PENDING" || r.status === "ACCEPTED").reduce((s, r) => s + (r.estMinutes ?? 20), 0) ?? 0;
   return (
     <Page width="max-w-5xl">

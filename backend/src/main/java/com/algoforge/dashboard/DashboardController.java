@@ -33,8 +33,9 @@ public class DashboardController {
     @GetMapping("/api/dashboard")
     public Map<String, Object> dashboard(Authentication auth, @RequestParam(required = false) String tz) {
         long uid = CurrentUser.id(auth);
-        // Days are counted in the browser's time zone so late-evening practice lands on the right day; unknown zones fall back to UTC.
-        String zone = tz != null && ZoneId.getAvailableZoneIds().contains(tz) ? tz : "UTC";
+        // Days are counted in the browser's time zone so late-evening practice lands on the right day.
+        ZoneId zone = RecommendationService.zone(tz);
+        LocalDate today = LocalDate.now(zone);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("recentSubmissions", jdbc.sql("""
                 select s.id, s.problem_id as "problemId", p.title, s.language, s.status, s.passed, s.total, s.created_at as "createdAt",
@@ -53,12 +54,12 @@ public class DashboardController {
         out.put("preferences", jdbc.sql("""
                 select goal_text as "goalText", goal_date as "goalDate", goal_concepts::text as "goalConcepts", daily_minutes as "dailyMinutes",
                        show_streak as "showStreak" from user_preferences where user_id = ?""").param(uid).query().singleRow());
-        out.put("recommendations", recommendations.today(uid));
+        out.put("recommendations", recommendations.today(uid, today));
         out.put("activity", jdbc.sql("""
                 select (created_at at time zone :tz)::date as day, count(*) as judged, count(*) filter (where status = 'ACCEPTED') as accepted
                   from submissions where user_id = :uid and judged_at is not null and status <> 'INTERNAL_ERROR'
                    and created_at > now() - interval '54 weeks'
-                 group by 1 order by 1""").param("tz", zone).param("uid", uid).query().listOfRows());
+                 group by 1 order by 1""").param("tz", zone.getId()).param("uid", uid).query().listOfRows());
 
         List<ConceptMastery> concepts = learning.concepts(uid);
         out.put("weakestConcepts", concepts.stream().filter(c -> c.mastery() != null && !c.status().equals("INSUFFICIENT_EVIDENCE"))
@@ -86,10 +87,11 @@ public class DashboardController {
         Map<String, Object> prefs = (Map<String, Object>) out.get("preferences");
         if (Boolean.TRUE.equals(prefs.get("showStreak"))) {
             List<LocalDate> days = jdbc.sql("""
-                    select distinct created_at::date from submissions where user_id = ? and status = 'ACCEPTED' order by 1 desc limit 400""")
-                    .param(uid).query(LocalDate.class).list();
+                    select distinct (created_at at time zone ?)::date from submissions where user_id = ? and status = 'ACCEPTED'
+                     order by 1 desc limit 400""")
+                    .params(zone.getId(), uid).query(LocalDate.class).list();
             int streak = 0;
-            LocalDate expect = LocalDate.now();
+            LocalDate expect = today;
             if (!days.isEmpty() && days.getFirst().equals(expect.minusDays(1))) expect = expect.minusDays(1);
             for (LocalDate d : days) {
                 if (!d.equals(expect)) break;

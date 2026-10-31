@@ -25,6 +25,9 @@ export function verdictTone(v?: string): Tone {
 
 export const PENDING = ["QUEUED", "COMPILING", "RUNNING"];
 
+/** The browser's time zone as a query parameter, so the API counts days the way the user sees them. */
+export const tzQuery = () => `tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`;
+
 export function difficultyTone(d?: string): Tone {
   return d === "EASY" ? "ok" : d === "MEDIUM" ? "warn" : d === "HARD" ? "bad" : "neutral";
 }

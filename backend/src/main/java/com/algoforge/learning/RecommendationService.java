@@ -4,6 +4,7 @@ import com.algoforge.common.ApiException;
 import com.algoforge.learning.LearningService.ConceptMastery;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -63,11 +64,16 @@ public class RecommendationService {
         };
     }
 
+    /** The user's calendar day follows the browser's time zone; a missing or unknown zone falls back to UTC. */
+    public static ZoneId zone(String tz) {
+        return ZoneId.of(tz != null && ZoneId.getAvailableZoneIds().contains(tz) ? tz : "UTC");
+    }
+
     @Transactional
-    public List<Rec> today(long userId) {
+    public List<Rec> today(long userId, LocalDate day) {
         // The dashboard and the practice page both build the session; one at a time per user, or both insert a full day.
         jdbc.sql("select pg_advisory_xact_lock(2, ?)").param(Math.toIntExact(userId)).query((rs, i) -> 0).list();
-        List<Rec> existing = stored(userId);
+        List<Rec> existing = stored(userId, day);
         if (!existing.isEmpty()) return existing;
         record Prefs(int dailyMinutes, String targetDifficulty, String goalText, String[] goalConcepts) {}
         Prefs prefs = jdbc.sql("select daily_minutes, target_difficulty, goal_text, goal_concepts from user_preferences where user_id = ?")
@@ -76,30 +82,30 @@ public class RecommendationService {
         int minutes = 0;
         Map<Long, Problem> problems = problems(userId);
         for (Candidate c : candidates(userId, Set.of(), prefs.targetDifficulty(), List.of(prefs.goalConcepts()), prefs.goalText())) {
-            if (minutes >= prefs.dailyMinutes() || stored(userId).size() >= MAX_ITEMS) break;
-            insert(userId, c);
+            if (minutes >= prefs.dailyMinutes() || stored(userId, day).size() >= MAX_ITEMS) break;
+            insert(userId, c, day);
             Problem p = problems.get(c.problemId());
             minutes += p.estMinutes() == null ? DEFAULT_MINUTES : p.estMinutes();
         }
-        return stored(userId);
+        return stored(userId, day);
     }
 
     @Transactional
-    public Rec act(long userId, long recId, String action) {
-        Rec r = stored(userId).stream().filter(x -> x.id() == recId).findFirst().orElseThrow(() -> ApiException.notFound("Recommendation"));
+    public Rec act(long userId, long recId, String action, LocalDate day) {
+        Rec r = stored(userId, day).stream().filter(x -> x.id() == recId).findFirst().orElseThrow(() -> ApiException.notFound("Recommendation"));
         switch (action) {
             case "accept" -> setStatus(recId, "ACCEPTED");
             case "skip" -> setStatus(recId, "SKIPPED");
             case "replace" -> {
                 setStatus(recId, "REPLACED");
-                Set<Long> exclude = stored(userId).stream().map(Rec::problemId).collect(Collectors.toSet());
+                Set<Long> exclude = stored(userId, day).stream().map(Rec::problemId).collect(Collectors.toSet());
                 exclude.addAll(jdbc.sql("select problem_id from recommendations where user_id = ? and for_date = ?")
-                        .params(userId, LocalDate.now()).query(Long.class).list());
+                        .params(userId, day).query(Long.class).list());
                 List<Candidate> alts = candidates(userId, exclude, null, List.of(), null);
                 Optional<Candidate> alt = alts.stream().filter(c -> c.conceptCode() != null && c.conceptCode().equals(r.conceptCode())).findFirst()
                         .or(() -> alts.stream().findFirst());
                 if (alt.isEmpty()) throw ApiException.conflict("No other suitable problem is available right now");
-                return byId(insert(userId, alt.get()));
+                return byId(insert(userId, alt.get(), day));
             }
             default -> throw ApiException.badRequest("Unknown action " + action);
         }
@@ -251,21 +257,21 @@ public class RecommendationService {
                 .query(ProblemConcept.class).list().stream().filter(pc -> judgeable.contains(pc.problemId())).toList();
     }
 
-    private long insert(long userId, Candidate c) {
+    private long insert(long userId, Candidate c, LocalDate day) {
         return jdbc.sql("insert into recommendations (user_id, problem_id, concept_code, kind, reason, for_date) values (?, ?, ?, ?, ?, ?) returning id")
-                .params(userId, c.problemId(), c.conceptCode(), c.kind(), c.reason(), LocalDate.now()).query(Long.class).single();
+                .params(userId, c.problemId(), c.conceptCode(), c.kind(), c.reason(), day).query(Long.class).single();
     }
 
     private void setStatus(long id, String status) {
         jdbc.sql("update recommendations set status = ?, acted_at = now() where id = ?").params(status, id).update();
     }
 
-    private List<Rec> stored(long userId) {
+    private List<Rec> stored(long userId, LocalDate day) {
         return jdbc.sql("""
                 select r.id, r.problem_id, p.title, p.difficulty, p.est_minutes, r.concept_code, r.kind, r.reason, r.status
                   from recommendations r join problems p on p.id = r.problem_id
                  where r.user_id = ? and r.for_date = ? and r.status <> 'REPLACED' order by r.id""")
-                .params(userId, LocalDate.now()).query(Rec.class).list();
+                .params(userId, day).query(Rec.class).list();
     }
 
     private Rec byId(long id) {
