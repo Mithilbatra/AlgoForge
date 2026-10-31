@@ -12,7 +12,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/** The Postgres job queue: what finished jobs keep, and how much one user may queue. */
+/** The Postgres job queue: what finished jobs keep, how much one user may queue, and which jobs a worker claims. */
 class JobQueueIntegrationTest extends IntegrationTest {
     @Autowired JobQueue queue;
 
@@ -63,6 +63,19 @@ class JobQueueIntegrationTest extends IntegrationTest {
 
         jdbc.sql("update execution_jobs set status = 'DONE' where user_id in (?, ?)").params(uid, other).update();  // nothing left for a test worker
         queue.enqueue("RUN", uid, null, Map.of());  // finished jobs free the slots
+        jdbc.sql("update execution_jobs set status = 'DONE' where user_id = ?").param(uid).update();
+    }
+
+    @Test
+    void aWorkerRunsOneSlowJobAtATime() throws Exception {
+        jdbc.sql("update execution_jobs set status = 'DONE' where status = 'QUEUED'").update();  // claim() takes the oldest job of any test
+        long uid = userId(register("slow"));
+        long twin = queue.enqueue("TWIN", uid, null, Map.of());
+        long evaluation = queue.enqueue("EVALUATE", uid, null, Map.of());
+        long run = queue.enqueue("RUN", uid, null, Map.of());
+        assertThat(queue.claim("worker-a").orElseThrow().id()).isEqualTo(twin);
+        assertThat(queue.claim("worker-a").orElseThrow().id()).isEqualTo(run);  // the evaluation waits while worker-a runs a twin
+        assertThat(queue.claim("worker-b").orElseThrow().id()).isEqualTo(evaluation);
         jdbc.sql("update execution_jobs set status = 'DONE' where user_id = ?").param(uid).update();
     }
 }
