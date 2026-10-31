@@ -26,9 +26,11 @@ management:
   endpoints.web.exposure.include: health,info,metrics
   endpoint.health.probes.enabled: true
 
-springdoc:
+springdoc:   # off unless API_DOCS=true: the description lists every endpoint, which only development needs
   api-docs.path: /api/docs
+  api-docs.enabled: ${API_DOCS:false}
   swagger-ui.path: /api/docs/ui
+  swagger-ui.enabled: ${API_DOCS:false}
 
 algoforge:
   worker:

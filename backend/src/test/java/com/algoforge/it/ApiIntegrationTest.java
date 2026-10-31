@@ -182,4 +182,10 @@ class ApiIntegrationTest extends IntegrationTest {
         long rec = dash.get("recommendations").get(0).get("id").asLong();
         mvc.perform(post("/api/recommendations/" + rec + "/accept?tz=Pacific/Kiritimati").cookie(s).with(csrf())).andExpect(status().isOk());
     }
+
+    @Test
+    void apiDocsAreOffUnlessEnabled() throws Exception {
+        mvc.perform(get("/api/docs")).andExpect(status().isNotFound());
+        mvc.perform(get("/api/docs/ui")).andExpect(status().isNotFound());
+    }
 }

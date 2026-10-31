@@ -250,4 +250,4 @@ The mark is an "A" drawn as a small graph: three nodes joined by edges, with a s
 
 ## API documentation
 
-OpenAPI JSON is served at `/api/docs` and Swagger UI at `/api/docs/ui` on the API port.
+OpenAPI JSON is served at `/api/docs` and Swagger UI at `/api/docs/ui` on the API port when it starts with `API_DOCS=true`. They are off by default because they list every endpoint.

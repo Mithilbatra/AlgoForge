@@ -43,7 +43,7 @@ Last full run: 94 backend tests (3 opt-in live tests skipped without keys) and 8
 | Dashboard | Recent activity, today's session, weakest concepts, weekly judged/accepted chart, time management from assessments, optional streak | Verified | Browser |
 | UI | Design system (tokens, AA contrast, shared components), light and dark themes with a system default and no flash on load, responsive app shell, concept-graph Learning Map | Verified | Every page screenshotted at 1440 px in both themes and at phone width; 7 Playwright journeys |
 | UI | Command palette (⌘K), activity heatmap counted in the browser's time zone, live judging steps, animated verdicts, typing coach replies, timer ring, flowing learning-map edges, circular theme transition; all motion off for reduced motion | Tested, verified | `activityDaysAreCountedInTheBrowsersTimeZone`, e2e command palette journey, screenshots mid-animation in both themes and at phone width |
-| Ops | Flyway migrations, Dockerfiles, compose (dev DB or full stack), health and metrics endpoints, OpenAPI at `/api/docs`, retention job, audit log | Verified | Full stack started and passed e2e |
+| Ops | Flyway migrations, Dockerfiles, compose (dev DB or full stack), health and metrics endpoints, OpenAPI at `/api/docs` (with `API_DOCS=true`), retention job, audit log | Verified | Full stack started and passed e2e |
 
 ## Known limitations and future work
 
