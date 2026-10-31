@@ -161,8 +161,8 @@ public class AiService {
                 return new Call<>(p.provider(), c.model(), "OK", value, null);
             } catch (AiException e) {
                 int ms = (int) ((System.nanoTime() - t0) / 1_000_000);
-                boolean transientError = e.kind() == AiException.Kind.RETRYABLE || e.kind() == AiException.Kind.TIMEOUT;
-                if (transientError && attempt < 2) {
+                // A timeout is not retried: the coach may try two providers and must answer inside the web proxy's 150 s.
+                if (e.kind() == AiException.Kind.RETRYABLE && attempt < 2) {
                     sleep(2000);
                     continue;
                 }

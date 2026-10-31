@@ -58,7 +58,7 @@ algoforge:
     claude-api-key: ${ANTHROPIC_API_KEY:}
     gemini-api-key: ${GEMINI_API_KEY:}
     dual-mode: ${AI_DUAL_MODE:false}
-    timeout-seconds: 70   # a timeout is retried once, and both tries must fit in the web proxy's 150 s (the worker allows more)
+    timeout-seconds: 70   # never retried after a timeout, so two providers fit in the web proxy's 150 s (the worker allows more)
     requests-per-user-per-hour: ${AI_REQUESTS_PER_HOUR:20}
     cache-days: 30
   limits:

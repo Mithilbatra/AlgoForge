@@ -113,10 +113,10 @@ class AiServiceIntegrationTest extends IntegrationTest {
         assertThat(service(false, 20, flaky).review(uid, "r " + System.nanoTime()).getFirst().status()).isEqualTo("OK");
         assertThat(flaky.calls.get()).isEqualTo(2);
 
-        var down = new Scripted(first(), new AiException(AiException.Kind.TIMEOUT, "timeout"), new AiException(AiException.Kind.TIMEOUT, "timeout"));
+        var down = new Scripted(first(), new AiException(AiException.Kind.TIMEOUT, "timeout"), REVIEW);
         var call = service(false, 20, down).review(uid, "t " + System.nanoTime()).getFirst();
         assertThat(call.status()).isEqualTo("TIMEOUT");
-        assertThat(down.calls.get()).isEqualTo(2);
+        assertThat(down.calls.get()).isEqualTo(1);  // timeouts are not retried, so two providers fit inside the web proxy's wait
 
         var refused = new Scripted(first(), new AiException(AiException.Kind.FATAL, "HTTP 400"));
         assertThat(service(false, 20, refused).review(uid, "f " + System.nanoTime()).getFirst().status()).isEqualTo("ERROR");
