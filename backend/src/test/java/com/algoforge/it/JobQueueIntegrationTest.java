@@ -1,14 +1,18 @@
 package com.algoforge.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.algoforge.common.ApiException;
 import com.algoforge.judge.JobQueue;
+import jakarta.servlet.http.Cookie;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/** The Postgres job queue: what finished jobs keep. */
+/** The Postgres job queue: what finished jobs keep, and how much one user may queue. */
 class JobQueueIntegrationTest extends IntegrationTest {
     @Autowired JobQueue queue;
 
@@ -31,5 +35,34 @@ class JobQueueIntegrationTest extends IntegrationTest {
         for (long id : new long[] {done, failed, stale}) assertThat(column("payload", id)).isEqualTo("{}");
         assertThat(column("result", done)).contains("runs");
         assertThat(column("status", stale)).isEqualTo("FAILED");
+    }
+
+    @Test
+    void oneUserCannotQueueMoreThanFiveJobs() throws Exception {
+        Cookie s = register("busy");
+        long uid = userId(s), other = userId(register("calm"));
+        for (int i = 0; i < 5; i++) queue.enqueue("RUN", uid, null, Map.of());
+        assertThatThrownBy(() -> queue.enqueue("RUN", uid, null, Map.of())).isInstanceOf(ApiException.class).hasMessageContaining("in progress");
+        mvc.perform(jsonPost("/api/runs", s, Map.of("problemId", problemId("Range Totals"), "language", "python", "code", "print(1)",
+                "input", "1", "samples", false))).andExpect(status().isTooManyRequests());
+        long submissions = jdbc.sql("select count(*) from submissions where user_id = ?").param(uid).query(Long.class).single();
+        mvc.perform(jsonPost("/api/submissions", s, Map.of("problemId", problemId("Range Totals"), "language", "python", "code", "print(1)")))
+                .andExpect(status().isTooManyRequests());
+        assertThat(jdbc.sql("select count(*) from submissions where user_id = ?").param(uid).query(Long.class).single())
+                .isEqualTo(submissions);  // the refused submission is rolled back, not left unjudged
+        long judged = jdbc.sql("""
+                insert into submissions (user_id, problem_id, language, code, status, passed, total, judged_at)
+                values (?, ?, 'python', 'print(1)', 'WRONG_ANSWER', 0, 6, now()) returning id""")
+                .params(uid, problemId("Range Totals")).query(Long.class).single();
+        jdbc.sql("insert into evaluation_reports (submission_id, correctness, overall_score, dimensions) values (?, 'FAILED', 0, '{}')")
+                .param(judged).update();
+        mvc.perform(jsonPost("/api/submissions/" + judged + "/evaluate", s, Map.of("useAi", false))).andExpect(status().isTooManyRequests());
+        assertThat(jdbc.sql("select status from evaluation_reports where submission_id = ?").param(judged).query(String.class).single())
+                .isEqualTo("BASIC");  // not left waiting for a deep evaluation that was never queued
+        queue.enqueue("RUN", other, null, Map.of());  // other users are not affected
+
+        jdbc.sql("update execution_jobs set status = 'DONE' where user_id in (?, ?)").params(uid, other).update();  // nothing left for a test worker
+        queue.enqueue("RUN", uid, null, Map.of());  // finished jobs free the slots
+        jdbc.sql("update execution_jobs set status = 'DONE' where user_id = ?").param(uid).update();
     }
 }

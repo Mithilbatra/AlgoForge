@@ -1,9 +1,11 @@
 package com.algoforge.judge;
 
+import com.algoforge.common.ApiException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +28,15 @@ public class JobQueue {
 
     public record Recovered(long id, String type, Long submissionId, String status) {}
 
+    /** Jobs one user may have queued or running at once, so one user cannot keep every worker busy. */
+    static final int MAX_ACTIVE_PER_USER = 5;
+
     public long enqueue(String type, Long userId, Long submissionId, Object payload) {
+        if (userId != null && jdbc.sql("select count(*) from execution_jobs where user_id = ? and status in ('QUEUED', 'RUNNING')")
+                .param(userId).query(Long.class).single() >= MAX_ACTIVE_PER_USER) {
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "You already have " + MAX_ACTIVE_PER_USER
+                    + " runs, submissions, evaluations or twins in progress; wait for one to finish");
+        }
         return jdbc.sql("insert into execution_jobs (type, user_id, submission_id, payload) values (?, ?, ?, cast(? as jsonb)) returning id")
                 .params(type, userId, submissionId, write(payload)).query(Long.class).single();
     }

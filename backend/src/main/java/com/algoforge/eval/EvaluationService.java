@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Evaluation reports. The basic report (static analysis + execution evidence + scoring) is written with every
@@ -123,6 +124,7 @@ public class EvaluationService {
 
     // ---- deep evaluation: API side ------------------------------------------------------------------------------------
 
+    @Transactional  // a refused job must not leave the report marked DEEP_PENDING
     public long requestDeep(long userId, long submissionId, boolean useAi) {
         record S(String status, String sessionStatus, String mode, String reportStatus) {}
         S s = jdbc.sql("""
