@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Play, Swords } from "lucide-react";
 import { Badge, Button, ButtonLink, Callout, Card, Empty, ErrorNote, Input, Label, Page, PageHeader, Ring, SectionTitle, Select, Skeleton, Spinner } from "@/components/ui";
-import { errorMessage, post } from "@/lib/api";
+import { errorMessage, get, poll, post } from "@/lib/api";
 import { difficultyTone, LANGUAGE_LABEL, relativeTime } from "@/lib/format";
-import type { ConceptMastery, Difficulty, Language, OaDefinition, Page as Paged, ProblemSummary } from "@/lib/types";
+import type { ConceptMastery, Difficulty, Job, Language, OaDefinition, Page as Paged, ProblemSummary } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 import { useTitle } from "@/lib/useTitle";
 
@@ -41,6 +41,11 @@ export default function OaArena() {
     try {
       const d = await post<OaDefinition>(`/api/oa/templates/${t.id}/instantiate`);
       defs.reload();
+      if (d.starter === "PREPARING" && d.starterJobId) {  // a debugging round: wait for its bugs to be planted
+        const job = await poll(() => get<Job>(`/api/jobs/${d.starterJobId}`), (j) => j.status === "DONE" || j.status === "FAILED", undefined, 1500);
+        defs.reload();
+        if (job.status === "FAILED") throw new Error("Planting the bugs failed. Try again for a new round.");
+      }
       setBusy(undefined);
       await start(d.id);
     } catch (e) {
@@ -51,6 +56,12 @@ export default function OaArena() {
 
   const templates = defs.data?.filter((d) => d.isTemplate) ?? [];
   const mine = defs.data?.filter((d) => !d.isTemplate) ?? [];
+  const planting = mine.some((d) => d.starter === "PREPARING");
+  useEffect(() => {
+    if (!planting) return;
+    const t = setTimeout(defs.reload, 3000);
+    return () => clearTimeout(t);
+  }, [planting, defs.data, defs.reload]);
 
   return (
     <Page>
@@ -82,9 +93,10 @@ export default function OaArena() {
               </dl>
               <div className="mt-3 flex flex-wrap gap-1">
                 {t.recipe?.slots.map((s, j) => <Badge key={j} tone={difficultyTone(s.difficulty)}>{s.difficulty.toLowerCase()} · {s.points}</Badge>)}
+                {t.bugsPerProblem && <Badge tone="violet">{t.bugsPerProblem} bugs per program · Python</Badge>}
               </div>
               <Button variant="primary" className="mt-5 w-full" disabled={busy !== undefined || !!active} onClick={() => fromTemplate(t)}>
-                {busy === t.id ? "Preparing…" : "Pick problems and start"}
+                {busy === t.id ? (t.bugsPerProblem ? "Planting bugs…" : "Preparing…") : t.bugsPerProblem ? "Plant bugs and start" : "Pick problems and start"}
               </Button>
             </Card>
           ))}
@@ -102,8 +114,12 @@ export default function OaArena() {
                     <div className="min-w-0">
                       <p className="truncate font-medium text-fg">{d.title}</p>
                       <p className="truncate text-xs text-muted">{d.durationMinutes} min · {d.problems.map((p) => p.title).join(", ")}</p>
+                      {d.starter === "PREPARING" && <p className="text-xs text-accent">Planting bugs…</p>}
+                      {d.starter === "FAILED" && <p className="text-xs text-bad">Planting the bugs failed; start a new round</p>}
                     </div>
-                    <Button size="sm" disabled={busy !== undefined || !!active} onClick={() => start(d.id)}><Play aria-hidden />{busy === d.id ? "Starting…" : "Start"}</Button>
+                    <Button size="sm" disabled={busy !== undefined || !!active || (d.starter !== undefined && d.starter !== "READY")} onClick={() => start(d.id)}>
+                      <Play aria-hidden />{busy === d.id ? "Starting…" : "Start"}
+                    </Button>
                   </li>
                 ))}
               </ul>

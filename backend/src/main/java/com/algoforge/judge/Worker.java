@@ -3,6 +3,7 @@ package com.algoforge.judge;
 import com.algoforge.AppProperties;
 import com.algoforge.eval.EvaluationService;
 import com.algoforge.judge.JobQueue.Job;
+import com.algoforge.oa.DebugRoundService;
 import com.algoforge.problems.TwinService;
 import jakarta.annotation.PreDestroy;
 import java.lang.management.ManagementFactory;
@@ -29,6 +30,7 @@ public class Worker implements ApplicationRunner {
     private final JudgeService judge;
     private final EvaluationService evaluations;
     private final TwinService twins;
+    private final DebugRoundService debugRounds;
     private final AppProperties.Worker cfg;
     private final AppProperties.Sandbox sandbox;
     private final String workerId = ManagementFactory.getRuntimeMXBean().getName();
@@ -36,11 +38,13 @@ public class Worker implements ApplicationRunner {
     private final ScheduledExecutorService housekeeping = Executors.newSingleThreadScheduledExecutor();
     private volatile boolean stopping;
 
-    public Worker(JobQueue queue, JudgeService judge, EvaluationService evaluations, TwinService twins, AppProperties props) {
+    public Worker(JobQueue queue, JudgeService judge, EvaluationService evaluations, TwinService twins, DebugRoundService debugRounds,
+                  AppProperties props) {
         this.queue = queue;
         this.judge = judge;
         this.evaluations = evaluations;
         this.twins = twins;
+        this.debugRounds = debugRounds;
         this.cfg = props.worker();
         this.sandbox = props.sandbox();
     }
@@ -87,6 +91,7 @@ public class Worker implements ApplicationRunner {
                 case "RUN" -> judge.run(job);
                 case "EVALUATE" -> { evaluations.deepEvaluate(job); yield null; }
                 case "TWIN" -> twins.build(job);
+                case "DEBUG" -> debugRounds.plant(job);
                 default -> throw new IllegalStateException("unknown job type " + job.type());
             };
             queue.complete(job.id(), result);

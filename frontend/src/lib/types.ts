@@ -109,13 +109,15 @@ export interface OaDefinition {
   partialCredit: boolean; wrongPenaltyPct: number; languages: Language[]; allowHints: boolean;
   problems: { problemId: number; title: string; difficulty?: Difficulty; points: number; ordinal: number }[];
   recipe?: { slots: { difficulty: Difficulty; points: number }[] };
+  /** Debugging rounds only: bugs planted per program, and whether this round's buggy code is ready. */
+  bugsPerProblem?: number; starter?: "PREPARING" | "READY" | "FAILED"; starterJobId?: number;
 }
 
 export interface OaState {
   id: number; title: string; status: "ACTIVE" | "FINALIZING" | "COMPLETED"; mode: string; startedAt: string; endsAt: string;
   remainingMs: number; endReason?: string; languages: Language[]; allowHints: boolean; partialCredit: boolean;
-  wrongPenaltyPct: number; pointsEarned: number; maxPoints: number;
-  problems: { problemId: number; title: string; points: number; ordinal: number; score?: number; attempts?: number; bestStatus?: string; lastStatus?: string }[];
+  wrongPenaltyPct: number; pointsEarned: number; maxPoints: number; bugsPerProblem?: number;
+  problems: { problemId: number; title: string; points: number; ordinal: number; score?: number; attempts?: number; bestStatus?: string; lastStatus?: string; starterCode?: string }[];
   submissions: { id: number; problemId: number; status: string; passed: number; total: number; at: string }[];
 }
 
@@ -126,7 +128,7 @@ export interface OaReport {
   problems: {
     problemId: number; title: string; points: number; score: number; solved: boolean; partial: boolean; attempts: number;
     rejected: number; verdicts: Record<string, number>; failedOnSamples: number; failedOnHiddenTests: number;
-    timeSpentSeconds: number; bestSubmissionId?: number;
+    timeSpentSeconds: number; bestSubmissionId?: number; plantedBugs?: { line: number; original: string; buggy: string }[];
     evaluation?: { evaluationId: number; overallScore: number; optimisationFindings: string[]; staticTimeComplexity?: string };
   }[];
   timeline: { submissionId: number; problemId: number; title: string; atSeconds: number; status: string; passed?: number; total?: number }[];

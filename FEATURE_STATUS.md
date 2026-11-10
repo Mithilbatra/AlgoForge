@@ -8,7 +8,7 @@ What each label means:
 - **Unconfigured**: implemented, but not exercised live because credentials were unavailable.
 - **Not implemented**: deliberately left out.
 
-Last full run: 94 backend tests (3 opt-in live tests skipped without keys) and 8 Playwright journeys against a production build of the web app with a local API and worker.
+Last full run: 114 backend tests (3 opt-in live tests skipped without keys) and 9 Playwright journeys against a production build of the web app with a local API and worker.
 
 ## Status by area
 
@@ -35,6 +35,7 @@ Last full run: 94 backend tests (3 opt-in live tests skipped without keys) and 8
 | AI | Dual-provider comparison with evidence-based resolution (no voting) | Tested | `DisagreementsTest` |
 | Forge Coach | Hint agent with three levels (nudge, approach, outline), grounded in the statement, current code, last verdict and static analysis; built-in fallback from authored hints; AI-written outlines count as an audited reveal; off during assessments that forbid hints; rate-limited | Tested, verified | `CoachIntegrationTest`, e2e coach journey, browser. The AI path is unconfigured live (same provider pipeline as reviews); long code blocks in replies are stripped (`AiOutputsTest`) |
 | OA Arena | Templates (labelled as practice simulations), custom builder (chosen and/or random problems, partial credit, penalties, languages, mode) | Tested, verified | `OaIntegrationTest`, e2e |
+| OA Arena | Debugging rounds: three Python programs with two planted bugs each, new bugs every round, every bug caught by the tests, answer key in the report | Tested, verified | `DebugRoundIntegrationTest` (real sandbox), e2e, browser |
 | OA Arena | Server-authoritative timer, refresh recovery, one active session, explicit submit, expiry sweeper, waiting for pending judging | Tested | `expiryFinalisesDeterministicallyAndBlocksLateSubmissions`, `finalisationWaitsForSubmissionsStillBeingJudged` |
 | OA Arena | Hidden test data, editorials and evaluations withheld during the assessment, even when it allows hints; hints, topics and Forge Coach withheld unless it does | Tested | `allowingHintsStillHidesSolutionsDuringTheAssessment`, e2e |
 | OA Arena | Report: score, solved and partial, time per problem, verdict mix, sample-vs-hidden failures, timeline, insights, concepts to revise, follow-ups, evaluation links | Tested, verified | Integration, e2e, browser |
@@ -55,6 +56,7 @@ Last full run: 94 backend tests (3 opt-in live tests skipped without keys) and 8
 - **No verdict sync from external platforms.** Codeforces `user.status` could provide it later.
 - **No company tags.** No legitimately sourced data exists for them.
 - **No statement import for external problems.** The APIs used don't provide statements, and AlgoForge does not scrape. Original twins are the alternative: new problems on the same technique.
+- **Debugging rounds are Python-only and come from the template.** Bugs are planted in the problems' Python reference solutions, so custom assessments cannot be debugging rounds yet. As with any assessment, the drawn problems' editorials can be opened before the round starts.
 - **Original twins are only as sure as two AI-written programs.** The reference and the brute force come from the same model, so a shared misreading of the statement passes the cross-check. Their input validator is AI-written too, and there is no way to edit or delete a twin yet.
 - **Drafts are per browser.** They live in `localStorage`, so autosave does not follow you across devices, and signing out deletes them.
 - **Rate limits are kept in memory per API instance.** Move them to Redis or PostgreSQL before running several API instances. Sessions are already shared.

@@ -33,6 +33,19 @@ export async function setCode(page: Page, code: string) {
   }, code);
 }
 
+/** The Monaco model's contents. */
+export async function getCode(page: Page) {
+  await page.waitForFunction(() => {
+    const w = window as unknown as { monaco?: { editor: { getEditors(): unknown[] } } };
+    return (w.monaco?.editor.getEditors().length ?? 0) > 0;
+  });
+  return page.evaluate(() => {
+    const w = window as unknown as { monaco: { editor: { getEditors(): { getModel(): { getValue(): string } }[] } } };
+    const editors = w.monaco.editor.getEditors();
+    return editors[editors.length - 1].getModel().getValue();
+  });
+}
+
 export async function chooseLanguage(page: Page, label: "Python 3" | "C++17" | "Java 21") {
   await page.getByLabel("Language").selectOption({ label });
 }

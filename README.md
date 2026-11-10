@@ -20,7 +20,7 @@ AlgoForge is a platform for competitive programming practice and coding-assessme
 - **Problem Hub**: original problems that are judged locally, plus problems from other platforms that are linked or synced, with deduplication and an honest per-platform capability panel. For a linked problem you can ask for an **original twin**: a new problem on the same technique, written by AI and judged here (see [Original twins](#original-twins)).
 - **Practice Lab**: Monaco editor, runs on the samples or custom input, judged submissions with per-test verdicts, real time and memory measurements, hints, notes and an editorial.
 - **Code evaluation**: every verdict comes from compiling and running the code in a Docker sandbox. A transparent, weighted report combines that execution evidence with static analysis. On request, a deep evaluation runs seeded random and AI-proposed inputs through an input validator and a trusted reference solution, keeps the smallest failing case, benchmarks accepted code, and asks the configured AI providers for a review. Disagreements are settled only by evidence.
-- **OA Arena**: timed assessments built from templates or by hand, with server-side timing, deterministic scoring (partial credit and penalties), hidden test data during the run, and a post-assessment report with time per problem, a submission timeline, insights and follow-up problems.
+- **OA Arena**: timed assessments built from templates or by hand, with server-side timing, deterministic scoring (partial credit and penalties), hidden test data during the run, and a post-assessment report with time per problem, a submission timeline, insights and follow-up problems. **Debugging rounds** hand out working programs with bugs planted in them; every round plants different bugs (see [Debugging rounds](#debugging-rounds)).
 - **Forge Coach**: an AI hint agent in the practice workspace. It reads the statement, your current code, your last verdict and the static analysis, and answers at the level you pick: a nudge, the approach, or a step-by-step outline. It never writes the solution (code blocks longer than six lines are stripped, even unclosed ones), an AI-written outline counts as a solution reveal, and it is switched off during assessments that forbid hints. Without an AI provider, a built-in coach answers from the problem's authored hints and a diagnosis of your last verdict.
 - **Adaptive learning**: a 22-concept prerequisite graph with per-dimension estimates (implementation, transfer, recognition, time pressure, retention, complexity reasoning) built only from judged evidence. A transfer-test engine moves you from the standard form of a concept to variants and disguised problems, and the daily session explains every pick.
 
@@ -122,7 +122,7 @@ Without any key, every deterministic part still works: judging, generated tests 
 
 ## Tests
 
-Backend (99 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
+Backend (114 tests: unit, integration against real PostgreSQL via Testcontainers, and real sandbox judging when the images are built):
 
 ```bash
 cd backend && mvn test
@@ -140,7 +140,7 @@ Opt-in live tests (skipped by default) call the real services. Export the provid
 cd backend && LIVE_TESTS=1 mvn test -Dtest=LiveIntegrationTest
 ```
 
-End-to-end browser journeys (register, practise, run, submit, evaluation, deep evaluation, Forge Coach, timed OA to report, completing a recommendation, sign-in guard). They need the stack running (either quick start or containers) and submit each problem's Python reference solution as the known-correct answer:
+End-to-end browser journeys (register, practise, run, submit, evaluation, deep evaluation, Forge Coach, timed OA to report, a debugging round, completing a recommendation, sign-in guard). They need the stack running (either quick start or containers) and submit each problem's Python reference solution as the known-correct answer:
 
 ```bash
 cd frontend && npx playwright install chromium && npm run test:e2e
@@ -208,6 +208,17 @@ AlgoForge does not copy statements from other sites, and renaming the nouns in s
 4. A verified twin is saved as your private original problem with its samples and 9 hidden tests. It is linked both ways to the source problem and keeps the source's concepts, so solving it counts as learning evidence.
 
 The checks catch a wrong reference only when the brute force gets it right; both come from the same model, so a twin is less certain than a hand-checked original. Its page marks it as AI-written.
+
+### Debugging rounds
+
+The "Debugging round" template in the OA Arena is a 30-minute assessment of three Python programs, each with two bugs planted in it. Fix them so every test passes.
+
+1. Starting a round draws three problems that have a reference solution and queues a job on the worker. No AI is involved.
+2. In the sandbox, `debug/plant_bugs.py` lists every one-token bug the reference solution can carry: a flipped comparison, `+` for `-`, `//` for `%`, `and` for `or`, a small constant off by one, a loop bound off by one, an index off by one, `min` for `max`.
+3. The job picks bugs in a random order that differs for every round. It keeps a bug only if some test catches it, and puts each kept bug on its own line. Fixing the bugs restores the reference solution, so a round can always be solved.
+4. The round starts once every program is ready. The editor opens on the buggy code (Reset brings it back), and judging, scoring and hidden tests work as in any assessment. The report lists each planted bug next to its fix.
+
+The handed-out code is the reference solution, so starting a round counts as seeing that solution: later solves of those problems weigh less as learning evidence, as after opening an editorial.
 
 ## Adding an original problem
 

@@ -82,6 +82,20 @@ export default function ReportPage() {
                   <td className="px-5 py-3"><Link className="font-medium text-fg underline-offset-4 hover:underline" href={`/problems/${p.problemId}`}>{p.title}</Link>
                     <div className="mt-1.5 flex flex-wrap gap-1">{Object.entries(p.verdicts).map(([v, n]) => <Badge key={v} tone={verdictTone(v)}>{n}× {VERDICT_LABEL[v]}</Badge>)}</div>
                     {(p.failedOnSamples > 0 || p.failedOnHiddenTests > 0) && <p className="mt-1.5 text-xs text-muted">Failed on visible samples {p.failedOnSamples}×, on hidden tests {p.failedOnHiddenTests}×</p>}
+                    {p.plantedBugs && (
+                      <div className="mt-2.5">
+                        <p className="text-xs text-faint">Planted bugs and their fixes</p>
+                        <ul className="mt-1 space-y-1 font-mono text-xs">
+                          {p.plantedBugs.map((b) => (
+                            <li key={b.line} className="flex flex-wrap items-baseline gap-x-2">
+                              <span className="text-faint">line {b.line}</span>
+                              <span className="text-bad line-through">{b.buggy.trim()}</span>
+                              <span className="text-ok">{b.original.trim()}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-3 tabular-nums text-fg">{p.score} / {p.points}</td>
                   <td className="px-3 py-3 tabular-nums text-fg">{formatDuration(p.timeSpentSeconds)} <span className="text-xs text-faint">({Math.round((100 * p.timeSpentSeconds) / Math.max(1, used))}%)</span></td>

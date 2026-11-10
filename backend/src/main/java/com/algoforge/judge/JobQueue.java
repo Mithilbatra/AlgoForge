@@ -42,16 +42,16 @@ public class JobQueue {
     }
 
     /**
-     * Twins and deep evaluations hold a thread for minutes (AI calls, benchmarks), so a worker process runs one of them
-     * at a time and its other threads keep judging.
+     * Twins, deep evaluations and debugging-round preparation hold a thread for minutes (AI calls, benchmarks, test runs),
+     * so a worker process runs one of them at a time and its other threads keep judging.
      * shortcut: two threads claiming at the same instant can both take one; lock per worker if that ever matters.
      */
     public Optional<Job> claim(String workerId) {
         return jdbc.sql("""
                 update execution_jobs set status = 'RUNNING', worker_id = :worker, locked_at = now(), attempts = attempts + 1
                  where id = (select id from execution_jobs where status = 'QUEUED'
-                                and (type not in ('TWIN', 'EVALUATE') or not exists (select 1 from execution_jobs r
-                                     where r.status = 'RUNNING' and r.worker_id = :worker and r.type in ('TWIN', 'EVALUATE')))
+                                and (type not in ('TWIN', 'EVALUATE', 'DEBUG') or not exists (select 1 from execution_jobs r
+                                     where r.status = 'RUNNING' and r.worker_id = :worker and r.type in ('TWIN', 'EVALUATE', 'DEBUG')))
                               order by id for update skip locked limit 1)
                 returning id, type, user_id, submission_id, payload::text, attempts""")
                 .param("worker", workerId).query(Job.class).optional();

@@ -106,6 +106,9 @@ public class OaFinalizer {
         double used = Math.max(1, Duration.between(s.startedAt(), end).toSeconds());
 
         List<Map<String, Object>> rows = new ArrayList<>();
+        Map<Long, Object> plantedBugs = new HashMap<>();  // debugging rounds: the answer key
+        jdbc.sql("select problem_id, bugs::text from oa_starter_code where definition_id = ?").param(s.definitionId())
+                .query((rs, i) -> plantedBugs.put(rs.getLong(1), read(rs.getString(2)))).list();
         Set<String> revise = new LinkedHashSet<>();
         List<String> insights = new ArrayList<>();
         double total = 0;
@@ -133,6 +136,7 @@ public class OaFinalizer {
             row.put("timeSpentSeconds", spent);
             row.put("bestSubmissionId", sc.bestSubmissionId());
             if (sc.bestSubmissionId() != null) row.put("evaluation", evaluationSummary(sc.bestSubmissionId()));
+            if (plantedBugs.containsKey(p.problemId())) row.put("plantedBugs", plantedBugs.get(p.problemId()));
             rows.add(row);
             total += sc.score();
             max += p.points();
@@ -217,6 +221,14 @@ public class OaFinalizer {
             out.merge(evs.get(i).problemId(), Math.max(0, Duration.between(evs.get(i).at(), until).toSeconds()), Long::sum);
         }
         return out;
+    }
+
+    private Object read(String s) {
+        try {
+            return json.readTree(s);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private String write(Object o) {

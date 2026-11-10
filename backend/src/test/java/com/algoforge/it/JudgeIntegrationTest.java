@@ -8,6 +8,7 @@ import com.algoforge.eval.EvaluationService;
 import com.algoforge.judge.JobQueue;
 import com.algoforge.judge.JudgeService;
 import com.algoforge.judge.WorkerHarness;
+import com.algoforge.oa.DebugRoundService;
 import com.algoforge.problems.TwinService;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
@@ -26,6 +27,7 @@ class JudgeIntegrationTest extends IntegrationTest {
     @Autowired JudgeService judge;
     @Autowired EvaluationService evaluations;
     @Autowired TwinService twins;
+    @Autowired DebugRoundService debugRounds;
 
     @BeforeAll
     static void sandboxImagesPresent() throws Exception {
@@ -43,7 +45,7 @@ class JudgeIntegrationTest extends IntegrationTest {
     }
 
     void runQueuedJobs() {
-        WorkerHarness worker = new WorkerHarness(queue, judge, evaluations, twins);
+        WorkerHarness worker = new WorkerHarness(queue, judge, evaluations, twins, debugRounds);
         while (worker.runOne()) { /* drain */ }
     }
 

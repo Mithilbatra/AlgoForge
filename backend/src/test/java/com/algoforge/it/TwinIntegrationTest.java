@@ -13,6 +13,7 @@ import com.algoforge.eval.EvaluationService;
 import com.algoforge.judge.JobQueue;
 import com.algoforge.judge.JudgeService;
 import com.algoforge.judge.WorkerHarness;
+import com.algoforge.oa.DebugRoundService;
 import com.algoforge.problems.ProblemService;
 import com.algoforge.problems.TwinService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,6 +32,7 @@ class TwinIntegrationTest extends IntegrationTest {
     @Autowired JudgeService judge;
     @Autowired EvaluationService evaluations;
     @Autowired TwinService twins;
+    @Autowired DebugRoundService debugRounds;
     @Autowired ProblemService problems;
     @Autowired AppProperties props;
     @Autowired TransactionTemplate tx;
@@ -104,7 +106,7 @@ class TwinIntegrationTest extends IntegrationTest {
 
         // The worker shows why a twin failed instead of a generic internal error.
         var queued = new JobQueue.Job((Long) jobId, "TWIN", uid, null, "{\"problemId\": " + link + "}", 1);
-        new WorkerHarness(queue, judge, evaluations, twins).handle(queued);
+        new WorkerHarness(queue, judge, evaluations, twins, debugRounds).handle(queued);
         assertThat(jdbc.sql("select error from execution_jobs where id = ?").param(jobId).query(String.class).single())
                 .contains("need an AI provider");
     }
@@ -218,7 +220,7 @@ class TwinIntegrationTest extends IntegrationTest {
     String judged(Cookie s, long problem, String code) throws Exception {
         var req = new HashMap<String, Object>(Map.of("problemId", problem, "language", "python", "code", code));
         long sid = body(mvc.perform(jsonPost("/api/submissions", s, req)).andReturn()).get("submissionId").asLong();
-        WorkerHarness worker = new WorkerHarness(queue, judge, evaluations, twins);
+        WorkerHarness worker = new WorkerHarness(queue, judge, evaluations, twins, debugRounds);
         while (worker.runOne()) { /* drain */ }
         return body(mvc.perform(get("/api/submissions/" + sid).cookie(s)).andReturn()).get("status").asText();
     }

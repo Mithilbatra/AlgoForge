@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, Flag } from "lucide-react";
+import { Bug, ChevronLeft, Flag } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Countdown } from "@/components/Countdown";
@@ -102,11 +102,19 @@ export default function AssessmentRoom() {
           The assessment has ended. Waiting for the last submissions to be judged before the report is generated.
         </div>
       )}
+      {open && state.bugsPerProblem && (
+        <div className="flex items-center gap-2 border-b border-line bg-panel-2/60 px-4 py-2 text-[13px] text-muted">
+          <Bug className="size-4 shrink-0 text-accent" aria-hidden />
+          <span><span className="font-medium text-fg">Debugging round.</span> Each program has {state.bugsPerProblem} planted bugs, one per line.
+            Fix them so every test passes; Reset brings the original buggy code back.</span>
+        </div>
+      )}
       {error && <div className="px-4 pt-2"><ErrorNote message={error} /></div>}
       <div className="min-h-0 flex-1">
         {current && (
           <Workspace key={current} problemId={current} mode={state.mode === "ASSESSMENT" ? "assessment" : "practice"} sessionId={state.id}
-            languages={state.languages} defaultLanguage={prefs.data?.preferredLanguage} disabled={!open} onJudged={refresh} />
+            languages={state.languages} defaultLanguage={prefs.data?.preferredLanguage} disabled={!open} onJudged={refresh}
+            starterCode={state.problems.find((p) => p.problemId === current)?.starterCode} />
         )}
       </div>
     </div>

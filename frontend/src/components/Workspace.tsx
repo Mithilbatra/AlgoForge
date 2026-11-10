@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { ArrowRight, BookOpen, Bot, Check, Copy, ExternalLink, EyeOff, History as HistoryIcon, Lightbulb, Play, Sparkles, StickyNote, TerminalSquare } from "lucide-react";
+import { ArrowRight, BookOpen, Bot, Check, Copy, ExternalLink, EyeOff, History as HistoryIcon, Lightbulb, Play, RotateCcw, Sparkles, StickyNote, TerminalSquare } from "lucide-react";
 import { errorMessage, get, poll, post, put } from "@/lib/api";
 import { draftKey, loadDraft, saveDraft, TEMPLATES } from "@/lib/drafts";
 import { difficultyTone, LANGUAGE_LABEL, relativeTime, STATUS_LABEL } from "@/lib/format";
@@ -38,10 +38,12 @@ export interface WorkspaceProps {
   defaultLanguage?: Language;
   disabled?: boolean;
   onJudged?: () => void;
+  /** Debugging rounds: the program with planted bugs, shown until the learner has a draft. */
+  starterCode?: string;
 }
 
 /** Statement | editor | console. Used by Practice (hints, notes, evaluations) and the OA Arena (none of those). */
-export function Workspace({ problemId, mode, sessionId, languages = ["python", "cpp", "java"], defaultLanguage, disabled, onJudged }: WorkspaceProps) {
+export function Workspace({ problemId, mode, sessionId, languages = ["python", "cpp", "java"], defaultLanguage, disabled, onJudged, starterCode }: WorkspaceProps) {
   const practice = mode === "practice";
   const { data: p, error, reload } = useApi<ProblemDetail>(`/api/problems/${problemId}`);
   const [language, setLanguage] = useState<Language>(defaultLanguage && languages.includes(defaultLanguage) ? defaultLanguage : languages[0]);
@@ -66,9 +68,9 @@ export function Workspace({ problemId, mode, sessionId, languages = ["python", "
 
   // Load the draft for this problem/language (or the starter template) whenever either changes.
   useEffect(() => {
-    setCode(pendingCode.current ?? loadDraft(draftKey(problemId, language, sessionId)) ?? TEMPLATES[language]);
+    setCode(pendingCode.current ?? loadDraft(draftKey(problemId, language, sessionId)) ?? starterCode ?? TEMPLATES[language]);
     pendingCode.current = null;
-  }, [problemId, language, sessionId]);
+  }, [problemId, language, sessionId, starterCode]);
 
   useEffect(() => {
     const t = setTimeout(() => saveDraft(draftKey(problemId, language, sessionId), code), 400);
@@ -185,6 +187,12 @@ export function Workspace({ problemId, mode, sessionId, languages = ["python", "
               )}
               <div className="ml-auto flex items-center gap-2">
                 {codeTooLong && <span className="text-xs text-bad">Code exceeds 64 KB</span>}
+                {starterCode && (
+                  <Button size="sm" variant="ghost" disabled={!!busy || disabled} title="Bring back the code as it was handed out, bugs included"
+                    onClick={() => { if (confirm("Replace your edits with the code as it was handed out?")) setCode(starterCode); }}>
+                    <RotateCcw aria-hidden />Reset
+                  </Button>
+                )}
                 {p.samples.length > 0 && (
                   <Button size="sm" onClick={() => run(true)} disabled={!!busy || disabled} title="Run the visible samples (Ctrl/Cmd+Enter)">
                     <Play aria-hidden />{busy === "run" ? "Running…" : "Run samples"}<span className="hidden xl:inline"><Kbd>⌘↵</Kbd></span>

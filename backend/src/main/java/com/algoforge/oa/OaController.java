@@ -2,6 +2,7 @@ package com.algoforge.oa;
 
 import com.algoforge.auth.CurrentUser;
 import com.algoforge.common.ApiException;
+import com.algoforge.judge.JobQueue;
 import com.algoforge.oa.OaScoring.Attempt;
 import com.algoforge.oa.OaScoring.ProblemSpec;
 import com.algoforge.problems.ProblemService;
@@ -22,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -41,17 +43,19 @@ public class OaController {
     private final OaFinalizer finalizer;
     private final ProblemService problems;
     private final ObjectMapper json;
+    private final JobQueue queue;
 
-    public OaController(JdbcClient jdbc, OaFinalizer finalizer, ProblemService problems, ObjectMapper json) {
+    public OaController(JdbcClient jdbc, OaFinalizer finalizer, ProblemService problems, ObjectMapper json, JobQueue queue) {
         this.jdbc = jdbc;
         this.finalizer = finalizer;
         this.problems = problems;
         this.json = json;
+        this.queue = queue;
     }
 
     public record Definition(long id, String title, String description, boolean isTemplate, int durationMinutes, String mode,
                              boolean partialCredit, int wrongPenaltyPct, List<String> languages, boolean allowHints,
-                             List<Map<String, Object>> problems, JsonNode recipe) {}
+                             List<Map<String, Object>> problems, JsonNode recipe, Integer bugsPerProblem, String starter, Long starterJobId) {}
 
     @GetMapping("/api/oa/definitions")
     public List<Definition> definitions(Authentication auth) {
@@ -67,10 +71,16 @@ public class OaController {
                 .param(id).query().listOfRows();
         return jdbc.sql("""
                 select id, title, description, is_template, duration_minutes, mode, partial_credit, wrong_penalty_pct, languages,
-                       allow_hints, recipe::text from oa_definitions where id = ?""").param(id)
+                       allow_hints, recipe::text, bugs_per_problem, starter_job_id,
+                       case when bugs_per_problem is null or is_template then null
+                            when (select count(*) from oa_starter_code s where s.definition_id = d.id)
+                                 = (select count(*) from oa_problems op where op.definition_id = d.id) then 'READY'
+                            when (select j.status from execution_jobs j where j.id = d.starter_job_id) in ('QUEUED', 'RUNNING') then 'PREPARING'
+                            else 'FAILED' end as starter
+                  from oa_definitions d where id = ?""").param(id)
                 .query((rs, i) -> new Definition(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getBoolean(4), rs.getInt(5),
                         rs.getString(6), rs.getBoolean(7), rs.getInt(8), List.of((String[]) rs.getArray(9).getArray()), rs.getBoolean(10),
-                        probs, readJson(rs.getString(11))))
+                        probs, readJson(rs.getString(11)), rs.getObject(12, Integer.class), rs.getString(14), rs.getObject(13, Long.class)))
                 .optional().orElseThrow(() -> ApiException.notFound("Assessment"));
     }
 
@@ -99,7 +109,7 @@ public class OaController {
         }
         if (body.random() != null) {
             RandomPick r = body.random();
-            List<Long> drawn = draw(uid, r.difficulty(), r.concepts(), r.count(), used);
+            List<Long> drawn = draw(uid, r.difficulty(), r.concepts(), r.count(), used, false);
             if (drawn.size() < r.count()) throw ApiException.badRequest("Only " + drawn.size() + " matching judgeable problems are available");
             drawn.forEach(id -> { used.add(id); picks.add(new ProblemPick(id, r.pointsEach())); });
         }
@@ -124,20 +134,25 @@ public class OaController {
         List<ProblemPick> picks = new ArrayList<>();
         Set<Long> used = new HashSet<>();
         for (JsonNode slot : t.recipe().path("slots")) {
-            List<Long> drawn = draw(uid, slot.path("difficulty").asText(), null, 1, used);
+            List<Long> drawn = draw(uid, slot.path("difficulty").asText(), null, 1, used, t.bugsPerProblem() != null);
             if (drawn.isEmpty()) throw ApiException.conflict("Not enough " + slot.path("difficulty").asText().toLowerCase() + " problems for this template");
             used.add(drawn.getFirst());
             picks.add(new ProblemPick(drawn.getFirst(), slot.path("points").asInt()));
         }
         long newId = jdbc.sql("""
-                insert into oa_definitions (owner_id, title, description, duration_minutes, mode, partial_credit, wrong_penalty_pct, languages, allow_hints)
-                select ?, title, description, duration_minutes, mode, partial_credit, wrong_penalty_pct, languages, allow_hints
+                insert into oa_definitions (owner_id, title, description, duration_minutes, mode, partial_credit, wrong_penalty_pct, languages,
+                    allow_hints, bugs_per_problem)
+                select ?, title, description, duration_minutes, mode, partial_credit, wrong_penalty_pct, languages, allow_hints, bugs_per_problem
                   from oa_definitions where id = ? returning id""").params(uid, id).query(Long.class).single();
         insertProblems(newId, picks);
+        if (t.bugsPerProblem() != null) {  // a debugging round: the worker plants new bugs for this round
+            long job = queue.enqueue("DEBUG", uid, null, Map.of("definitionId", newId));
+            jdbc.sql("update oa_definitions set starter_job_id = ? where id = ?").params(job, newId).update();
+        }
         return definition(newId);
     }
 
-    private List<Long> draw(long uid, String difficulty, List<String> concepts, int count, Set<Long> exclude) {
+    private List<Long> draw(long uid, String difficulty, List<String> concepts, int count, Set<Long> exclude, boolean needsReference) {
         return jdbc.sql("""
                 select p.id from problems p left join user_problem_state u on u.problem_id = p.id and u.user_id = :uid
                  where (p.owner_id is null or p.owner_id = :uid)
@@ -147,10 +162,11 @@ public class OaController {
                    and (exists (select 1 from test_cases t where t.problem_id = p.id and t.kind in ('SAMPLE', 'OFFICIAL'))
                         or jsonb_array_length(p.generated_specs) > 0)
                    and not (p.id = any(cast(:exclude as bigint[])))
+                   and (not :reference or p.reference_py is not null)
                  order by coalesce(u.status, 'UNSEEN') = 'SOLVED', random() limit :n""")
                 .param("uid", uid).param("diff", difficulty)
                 .param("concepts", (concepts == null ? List.<String>of() : concepts).toArray(String[]::new))
-                .param("exclude", exclude.toArray(Long[]::new)).param("n", count)
+                .param("exclude", exclude.toArray(Long[]::new)).param("reference", needsReference).param("n", count)
                 .query(Long.class).list();
     }
 
@@ -168,12 +184,18 @@ public class OaController {
         boolean mine = jdbc.sql("select count(*) from oa_definitions where id = ? and owner_id = ?").params(id, uid).query(Long.class).single() > 0;
         if (!mine) throw ApiException.notFound("Assessment");
         if (d.problems().isEmpty()) throw ApiException.badRequest("This assessment has no problems");
+        if (d.bugsPerProblem() != null && !"READY".equals(d.starter())) {
+            throw ApiException.conflict("FAILED".equals(d.starter()) ? "Planting the bugs failed for this round; start a new debugging round"
+                    : "The bugs are still being planted; try again in a moment");
+        }
         try {
             long sid = jdbc.sql("""
                     insert into oa_sessions (definition_id, user_id, ends_at, max_score)
                     values (?, ?, now() + make_interval(mins => ?), ?) returning id""")
                     .params(id, uid, d.durationMinutes(), d.problems().stream().mapToInt(p -> ((Number) p.get("points")).intValue()).sum())
                     .query(Long.class).single();
+            // The code handed out is each problem's reference solution with bugs in it: a later solve counts as weaker evidence.
+            if (d.bugsPerProblem() != null) d.problems().forEach(p -> problems.markRevealed(uid, ((Number) p.get("problemId")).longValue()));
             return Map.of("sessionId", sid);
         } catch (DuplicateKeyException e) {
             throw ApiException.conflict("You already have an assessment in progress; finish or submit it first");
@@ -208,6 +230,9 @@ public class OaController {
                         rs.getObject(6, OffsetDateTime.class).toInstant())).list();
         var scores = OaScoring.score(d.problems().stream().map(p -> new ProblemSpec(((Number) p.get("problemId")).longValue(),
                 ((Number) p.get("points")).intValue())).toList(), attempts, d.partialCredit(), d.wrongPenaltyPct());
+        Map<Long, String> starters = d.bugsPerProblem() == null ? Map.of() : jdbc.sql("select problem_id, code from oa_starter_code where definition_id = ?")
+                .param(d.id()).query((rs, i) -> Map.entry(rs.getLong(1), rs.getString(2))).list().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         List<Map<String, Object>> probs = new ArrayList<>();
         for (Map<String, Object> p : d.problems()) {
             long pid = ((Number) p.get("problemId")).longValue();
@@ -219,6 +244,7 @@ public class OaController {
                 row.put("bestStatus", sc.bestStatus());
             });
             attempts.stream().filter(a -> a.problemId() == pid).reduce((a, b) -> b).ifPresent(a -> row.put("lastStatus", a.status()));
+            if (starters.containsKey(pid)) row.put("starterCode", starters.get(pid));
             probs.add(row);
         }
         Map<String, Object> out = new LinkedHashMap<>();
@@ -232,6 +258,7 @@ public class OaController {
         out.put("endReason", s.endReason());
         out.put("languages", d.languages());
         out.put("allowHints", d.allowHints());
+        if (d.bugsPerProblem() != null) out.put("bugsPerProblem", d.bugsPerProblem());
         out.put("partialCredit", d.partialCredit());
         out.put("wrongPenaltyPct", d.wrongPenaltyPct());
         out.put("pointsEarned", Math.round(scores.stream().mapToDouble(OaScoring.ProblemScore::score).sum() * 100) / 100.0);

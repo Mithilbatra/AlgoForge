@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chooseLanguage, REFERENCE, register, setCode } from "./helpers";
+import { chooseLanguage, getCode, REFERENCE, register, setCode } from "./helpers";
 
 test("practice: open a problem, run, submit, read the evaluation, run a deep evaluation", async ({ page }) => {
   await page.goto("/");
@@ -77,6 +77,27 @@ test("OA Arena: start a timed assessment, solve one problem, submit, read the re
   await expect(page.getByText("100 / 300", { exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible();
   await expect(page.getByText("Recommended follow-up")).toBeVisible();
+});
+
+test("debugging round: buggy code handed out, fixed code accepted, answer key in the report", async ({ page }) => {
+  page.on("dialog", (d) => d.accept());
+  await page.goto("/oa");
+  await page.locator("section").filter({ hasText: "Debugging round" }).getByRole("button", { name: "Plant bugs and start" }).click();
+  await expect(page).toHaveURL(/\/oa\/\d+$/, { timeout: 180_000 });
+  await expect(page.getByText(/planted bugs, one per line/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reset" })).toBeVisible();
+
+  const title = (await page.locator("article h1").textContent())!.trim();
+  const handedOut = await getCode(page);
+  expect(handedOut).toContain("sys.stdin");
+  expect(handedOut).not.toBe(REFERENCE[title]);
+  await setCode(page, REFERENCE[title]);
+  await page.getByRole("button", { name: /^Submit$/ }).click();
+  await expect(page.getByText("Accepted").first()).toBeVisible({ timeout: 120_000 });
+
+  await page.getByRole("button", { name: "Submit assessment" }).click();
+  await expect(page).toHaveURL(/\/oa\/\d+\/report$/, { timeout: 60_000 });
+  await expect(page.getByText("Planted bugs and their fixes").first()).toBeVisible({ timeout: 60_000 });
 });
 
 test("recommendations: accept today's first pick and complete it", async ({ page }) => {
